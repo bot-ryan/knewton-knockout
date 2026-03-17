@@ -1,5 +1,6 @@
 // src/scenes/MainMenuScene.ts
 import Phaser from "phaser";
+import { Fonts } from "../gameinit/Fonts";
 
 type MenuEntry = {
   label: string;
@@ -35,7 +36,7 @@ export default class MainMenuScene extends Phaser.Scene {
     // Title
     this.titleText = this.add
       .text(width / 2, height * 0.22, "KNEWTON KNOCKOUT", {
-        fontFamily: "Greconian, sans-serif",
+        fontFamily: Fonts.Title,
         fontSize: "72px",
         color: "#f0e6d2",
         stroke: "#000000",
