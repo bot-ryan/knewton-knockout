@@ -1,7 +1,7 @@
 import "./style.css";
 import Phaser from "phaser";
 
-import Init from "./gameinit/Init"; // <-- your boot scene
+import Init from "./gameinit/GameInit"; // <-- your boot scene
 import MainMenuScene from "./scenes/MainMenuScene";
 import HowToPlayScene from "./scenes/HowToPlayScene";
 import CreditsScene from "./scenes/CreditsScene";

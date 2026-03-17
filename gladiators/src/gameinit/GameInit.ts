@@ -1,4 +1,4 @@
-// src/gameinit/Init.ts
+// src/gameinit/GameInit.ts
 import Phaser from "phaser";
 import { loadGameFonts } from "./Fonts";
 
