@@ -1,7 +1,7 @@
-// src/gameinit/fonts.ts
+// src/gameinit/Fonts.ts
 type FontSpec = {
   family: string;
-  path: string;                   // relative to public root, e.g. 'fonts/Greconian.ttf'
+  path: string;                   // relative to site base, e.g. 'fonts/Greconian.ttf'
   descriptors?: FontFaceDescriptors;
   format?: 'woff2' | 'truetype' | 'opentype' | 'woff';
 };
@@ -14,18 +14,19 @@ function loadFont({ family, path, descriptors, format }: FontSpec): Promise<void
   const url = import.meta.env.BASE_URL + path;   // base-aware
   const src = format ? `url(${url}) format('${format}')` : `url(${url})`;
 
+  console.log(`[FontLoader] Trying to load "${family}" from: ${url}`);
+
   const face = new FontFace(family, src, descriptors);
 
   const p = face.load()
     .then(f => {
       document.fonts.add(f);
-      if (!document.fonts.check(`16px ${family}`)) {
-        throw new Error(`Font "${family}" loaded but document.fonts.check() failed`);
-      }
-      console.log(`[FontLoader] Loaded "${family}" from ${url}`);
+      const ok = document.fonts.check(`16px ${family}`);
+      console.log(`[FontLoader] Loaded "${family}" ✓ check=${ok}`);
+      if (!ok) throw new Error(`document.fonts.check() failed for "${family}"`);
     })
     .catch(err => {
-      console.error(`[FontLoader] Failed to load "${family}" from ${url}`, err);
+      console.error(`[FontLoader] Failed "${family}" from: ${url}`, err);
       throw err;
     });
 
