@@ -36,7 +36,7 @@ export default class MainMenuScene extends Phaser.Scene {
     this.titleText = this.add
       .text(width / 2, height * 0.22, "KNEWTON KNOCKOUT", {
         fontFamily: "Greconian, sans-serif",
-        fontSize: "70px",
+        fontSize: "72px",
         color: "#f0e6d2",
         stroke: "#000000",
         strokeThickness: 4,

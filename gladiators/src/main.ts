@@ -32,8 +32,8 @@ const config: Phaser.Types.Core.GameConfig = {
     CharacterCreateScene,
   ],
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
+    mode: Phaser.Scale.EXPAND,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
   },
 };
 

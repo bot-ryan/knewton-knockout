@@ -30,6 +30,8 @@
   }
 }
 
+
+
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;
@@ -293,4 +295,22 @@ code {
     right: 0;
     border-right-color: var(--border);
   }
+}
+
+/* Phaser canvas layout */
+html, body, #game {
+  height: 100%;
+  margin: 0;
+}
+
+/* Keep the canvas at the top, centered horizontally */
+#game {
+  display: flex;
+  justify-content: center;   /* center horizontally */
+  align-items: flex-start;   /* align to top */
+}
+
+/* Avoid inline-image baseline gaps on canvas */
+#game canvas {
+  display: block;
 }
