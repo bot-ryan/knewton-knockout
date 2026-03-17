@@ -4,6 +4,8 @@ import MainMenuScene from "./scenes/MainMenuScene";
 import HowToPlayScene from "./scenes/HowToPlayScene";
 import CreditsScene from "./scenes/CreditsScene";
 import CharacterCreateScene from "./scenes/CharacterCreateScene";
+import "./style.css";
+
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,

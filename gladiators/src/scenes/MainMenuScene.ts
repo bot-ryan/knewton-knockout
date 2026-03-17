@@ -26,15 +26,17 @@ export default class MainMenuScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
+    
+
     // Background
     this.cameras.main.setBackgroundColor(0x101322);
     this.cameras.main.fadeIn(200, 0, 0, 0);
 
     // Title
     this.titleText = this.add
-      .text(width / 2, height * 0.22, "Main Menu", {
-        fontFamily: "serif",
-        fontSize: "50px",
+      .text(width / 2, height * 0.22, "KNEWTON KNOCKOUT", {
+        fontFamily: "Greconian, sans-serif",
+        fontSize: "70px",
         color: "#f0e6d2",
         stroke: "#000000",
         strokeThickness: 4,
