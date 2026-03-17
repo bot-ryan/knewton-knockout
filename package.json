@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "dev": "cd gladiators && npm run dev",
+    "build": "cd gladiators && npm run build",
+    "preview": "cd gladiators && npm run preview"
+  },
   "dependencies": {
     "phaser": "^3.90.0"
   }
