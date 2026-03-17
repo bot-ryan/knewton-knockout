@@ -23,10 +23,10 @@ export default class MainMenuScene extends Phaser.Scene {
     // this.load.audio('ui-select', 'assets/audio/ui-select.ogg');
   }
 
-  create() {
+  async create() {
     const { width, height } = this.scale;
 
-    
+    await document.fonts.ready; // Ensure fonts are loaded before creating text objects
 
     // Background
     this.cameras.main.setBackgroundColor(0x101322);

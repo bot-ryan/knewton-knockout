@@ -1,4 +1,16 @@
 import Phaser from "phaser";
+
+
+// ✅ Force-register the font with the exact name Phaser will use
+const greconian = new FontFace(
+  "Greconian",
+  "url(/Greconian.ttf)"
+);
+
+await greconian.load();
+document.fonts.add(greconian);
+
+
 import MainMenuScene from "./scenes/MainMenuScene";
 // If you created placeholder scenes, import them too:
 import HowToPlayScene from "./scenes/HowToPlayScene";
