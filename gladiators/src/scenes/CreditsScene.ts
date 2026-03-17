@@ -13,8 +13,8 @@ type CreditSlide = {
 const CREDIT_SLIDES: CreditSlide[] = [
   {
     name: "skippythedev",
-    role: "Big Boss, Super Sigma Developer, Low Cortisol Teacher",
-    blurb: "Core gameplay, systems, and overall direction.",
+    role: "Big Boss, Super Sigma Developer, \nLow Cortisol Teacher",
+    blurb: "\nCore gameplay, systems, and overall direction.",
     imageKey: "ryan",
     imageURL: "/assets/credits/ryan.jpg",
   },
@@ -64,6 +64,12 @@ export default class CreditsScene extends Phaser.Scene {
   private nextLabel!: Phaser.GameObjects.Text;
   private nextEnabled = true;
 
+  // Prev button
+  private prevBtn!: Phaser.GameObjects.Container;
+  private prevBg!: Phaser.GameObjects.Rectangle;
+  private prevLabel!: Phaser.GameObjects.Text;
+  private prevEnabled = true;
+
   constructor() {
     super("Credits");
   }
@@ -97,7 +103,7 @@ export default class CreditsScene extends Phaser.Scene {
     this.add.text(
       width / 2,
       height - 18,
-      "Press ESC to return • → or Next button to advance",
+      "Press ESC to return • ←/→ or Prev/Next buttons to navigate",
       { fontFamily: "sans-serif", fontSize: "14px", color: "#9aa4b2" }
     ).setOrigin(0.5, 1);
 
@@ -173,14 +179,19 @@ export default class CreditsScene extends Phaser.Scene {
 
     // Keyboard: Next / Back to menu
     this.input.keyboard?.on("keydown-RIGHT", () => this.nextSlide(true));
+    this.input.keyboard?.on("keydown-LEFT", () => this.prevSlide(true));
     this.input.keyboard?.on("keydown-ESC", () => this.returnToMenu());
 
     // --- Create NEXT button (bottom-right) ---
     this.createNextButton();
 
+    // --- Create PREV button (bottom-left) ---
+    this.createPrevButton();
+
     // Reposition UI on resize
     this.scale.on(Phaser.Scale.Events.RESIZE, (gameSize: Phaser.Structs.Size) => {
       this.layoutNextButton(gameSize.width, gameSize.height);
+      this.layoutPrevButton(gameSize.width, gameSize.height);
     });
 
     // Clean timers on shutdown
@@ -226,6 +237,38 @@ export default class CreditsScene extends Phaser.Scene {
     });
   }
 
+  private prevSlide(userTriggered = false) {
+    if (this.transitioning) return;
+    this.transitioning = true;
+
+    // Reset auto timer if user clicked the button or pressed arrow
+    if (userTriggered && this.autoTimer) {
+      this.autoTimer.reset({ delay: this.autoDelay, loop: true });
+    }
+
+    this.setPrevEnabled(false);
+    this.tweens.add({
+      targets: this.slideContainer,
+      alpha: 0,
+      duration: this.fadeDur,
+      ease: "quad.in",
+      onComplete: () => {
+        this.current = (this.current - 1 + CREDIT_SLIDES.length) % CREDIT_SLIDES.length;
+        this.applySlide(this.current);
+        this.tweens.add({
+          targets: this.slideContainer,
+          alpha: 1,
+          duration: this.fadeDur,
+          ease: "quad.out",
+          onComplete: () => {
+            this.transitioning = false;
+            this.setPrevEnabled(true);
+          },
+        });
+      },
+    });
+  }
+
   private applySlide(index: number) {
     const s = CREDIT_SLIDES[index];
 
@@ -259,6 +302,7 @@ export default class CreditsScene extends Phaser.Scene {
     this.transitioning = true;
     this.autoTimer?.remove(false);
     this.setNextEnabled(false);
+    this.setPrevEnabled(false);
 
     this.cameras.main.fadeOut(150, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -305,6 +349,45 @@ export default class CreditsScene extends Phaser.Scene {
     });
   }
 
+  // ---------- PREV button ----------
+  private createPrevButton() {
+    const { width, height } = this.scale;
+
+    // Container
+    this.prevBtn = this.add.container(0, 0).setDepth(9999);
+
+    // Background (rounded rect)
+    this.prevBg = this.add.rectangle(0, 0, 130, 40, 0x1f2937, 0.9)
+      .setStrokeStyle(2, 0x374151, 1)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    // Label
+    this.prevLabel = this.add.text(0, 0, "◁  Prev", {
+      fontFamily: "sans-serif",
+      fontSize: "18px",
+      color: "#e5e7eb",
+    }).setOrigin(0.5);
+
+    this.prevBtn.add([this.prevBg, this.prevLabel]);
+
+    // Initial placement
+    this.layoutPrevButton(width, height);
+
+    // Hover / press feedback
+    this.prevBg.on("pointerover", () => {
+      if (!this.prevEnabled) return;
+      this.tweens.add({ targets: this.prevBtn, scale: 1.06, duration: 100, ease: "quad.out" });
+    });
+    this.prevBg.on("pointerout", () => {
+      this.tweens.add({ targets: this.prevBtn, scale: 1.0, duration: 100, ease: "quad.out" });
+    });
+    this.prevBg.on("pointerdown", () => {
+      if (!this.prevEnabled) return;
+      this.tweens.add({ targets: this.prevBtn, scale: 0.96, duration: 60, yoyo: true, ease: "quad.out" });
+      this.prevSlide(true);
+    });
+  }
+
   private layoutNextButton(width: number, height: number) {
     const margin = 22;
     const x = width - margin - (this.nextBg.width / 2);
@@ -317,5 +400,19 @@ export default class CreditsScene extends Phaser.Scene {
     this.nextBg.setAlpha(enabled ? 0.9 : 0.4);
     this.nextBg.disableInteractive();
     if (enabled) this.nextBg.setInteractive({ useHandCursor: true });
+  }
+
+  private layoutPrevButton(width: number, height: number) {
+    const margin = 22;
+    const x = margin + (this.prevBg.width / 2);
+    const y = height - margin - (this.prevBg.height / 2);
+    this.prevBtn.setPosition(x, y);
+  }
+
+  private setPrevEnabled(enabled: boolean) {
+    this.prevEnabled = enabled;
+    this.prevBg.setAlpha(enabled ? 0.9 : 0.4);
+    this.prevBg.disableInteractive();
+    if (enabled) this.prevBg.setInteractive({ useHandCursor: true });
   }
 }
