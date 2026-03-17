@@ -58,14 +58,18 @@ export default class CreditsScene extends Phaser.Scene {
   private readonly leftWidthRatio = 0.40;    // 40% for media, 60% for text
   private readonly innerMargin = 28;         // gap between media and text
 
+  // Next button
+  private nextBtn!: Phaser.GameObjects.Container;
+  private nextBg!: Phaser.GameObjects.Rectangle;
+  private nextLabel!: Phaser.GameObjects.Text;
+  private nextEnabled = true;
+
   constructor() {
     super("Credits");
   }
 
   preload() {
-    // Load slide images
     CREDIT_SLIDES.forEach(s => {
-      // Safe to call multiple times; Phaser caches by key
       if (!this.textures.exists(s.imageKey)) {
         this.load.image(s.imageKey, s.imageURL);
       }
@@ -75,7 +79,6 @@ export default class CreditsScene extends Phaser.Scene {
   async create() {
     const { width, height } = this.scale;
 
-    // Background + fade
     this.cameras.main.setBackgroundColor(0x0e1a2b);
     this.cameras.main.fadeIn(150, 0, 0, 0);
 
@@ -91,18 +94,21 @@ export default class CreditsScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // ----- Footer hint (static) -----
-    this.add.text(width / 2, height - 18, "Press ESC to return • → or Click for next",
+    this.add.text(
+      width / 2,
+      height - 18,
+      "Press ESC to return • → or Next button to advance",
       { fontFamily: "sans-serif", fontSize: "14px", color: "#9aa4b2" }
     ).setOrigin(0.5, 1);
 
-    // ----- Slide container (faded in/out between people) -----
+    // ----- Slide container (faded between people) -----
     this.slideContainer = this.add.container(0, 0).setAlpha(0);
 
-    // Layout calculations
+    // Layout calc
     const pad = 32; // outer padding around the slide area
     const usableW = width - pad * 2;
     const usableH = height - 130 /* header space */ - 48 /* footer space */;
-    const topY = 110; // top of the slide area, below header
+    const topY = 110;
 
     const leftW = usableW * this.leftWidthRatio;
     const rightW = usableW - leftW - this.innerMargin;
@@ -111,8 +117,7 @@ export default class CreditsScene extends Phaser.Scene {
     const mediaX = pad + leftW / 2;
     const mediaY = topY + usableH / 2;
 
-    this.mediaImage = this.add.image(mediaX, mediaY, "__placeholder__")
-      .setVisible(false);
+    this.mediaImage = this.add.image(mediaX, mediaY, "__placeholder__").setVisible(false);
     this.slideContainer.add(this.mediaImage);
 
     // ---- Text (right) ----
@@ -152,7 +157,12 @@ export default class CreditsScene extends Phaser.Scene {
 
     // First slide
     this.applySlide(this.current);
-    this.tweenIn();
+    this.tweens.add({
+      targets: this.slideContainer,
+      alpha: 1,
+      duration: this.fadeDur,
+      ease: "quad.out",
+    });
 
     // Auto timer
     this.autoTimer = this.time.addEvent({
@@ -161,34 +171,58 @@ export default class CreditsScene extends Phaser.Scene {
       callback: () => this.nextSlide(),
     });
 
-    // Input: Next via Right Arrow or Click
+    // Keyboard: Next / Back to menu
     this.input.keyboard?.on("keydown-RIGHT", () => this.nextSlide(true));
-    this.input.once("pointerdown", () => this.nextSlide(true));
-
-    // Input: ESC to return anytime
     this.input.keyboard?.on("keydown-ESC", () => this.returnToMenu());
 
-    // Clean up timer when leaving scene
+    // --- Create NEXT button (bottom-right) ---
+    this.createNextButton();
+
+    // Reposition UI on resize
+    this.scale.on(Phaser.Scale.Events.RESIZE, (gameSize: Phaser.Structs.Size) => {
+      this.layoutNextButton(gameSize.width, gameSize.height);
+    });
+
+    // Clean timers on shutdown
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.autoTimer?.remove(false);
     });
   }
 
-  // ---------- Slide helpers ----------
+  update(_time: number, _delta: number) {
+    // nothing; slides advance by timer or input
+  }
 
+  // ---------- Slide helpers ----------
   private nextSlide(userTriggered = false) {
     if (this.transitioning) return;
     this.transitioning = true;
 
-    // Reset auto timer when user advances
+    // Reset auto timer if user clicked the button or pressed arrow
     if (userTriggered && this.autoTimer) {
       this.autoTimer.reset({ delay: this.autoDelay, loop: true });
     }
 
-    this.tweenOut(() => {
-      this.current = (this.current + 1) % CREDIT_SLIDES.length;
-      this.applySlide(this.current);
-      this.tweenIn();
+    this.setNextEnabled(false);
+    this.tweens.add({
+      targets: this.slideContainer,
+      alpha: 0,
+      duration: this.fadeDur,
+      ease: "quad.in",
+      onComplete: () => {
+        this.current = (this.current + 1) % CREDIT_SLIDES.length;
+        this.applySlide(this.current);
+        this.tweens.add({
+          targets: this.slideContainer,
+          alpha: 1,
+          duration: this.fadeDur,
+          ease: "quad.out",
+          onComplete: () => {
+            this.transitioning = false;
+            this.setNextEnabled(true);
+          },
+        });
+      },
     });
   }
 
@@ -200,56 +234,88 @@ export default class CreditsScene extends Phaser.Scene {
     this.roleText.setText(s.role);
     this.blurbText.setText(s.blurb ?? "");
 
-    // Replace image (and fit to left area box)
+    // Replace image (fit into left column)
     if (this.textures.exists(s.imageKey)) {
       this.mediaImage.setTexture(s.imageKey).setVisible(true);
 
-      // Fit image into left column area while preserving aspect ratio
       const { width, height } = this.scale;
       const pad = 32;
       const usableW = width - pad * 2;
       const usableH = height - 130 - 48;
       const leftW = usableW * this.leftWidthRatio;
-      const leftH = usableH; // full column height
+      const leftH = usableH;
 
       const srcW = this.mediaImage.width;
       const srcH = this.mediaImage.height;
-      const scale = Math.min(leftW / srcW, leftH / srcH, 1.0); // don't upscale beyond 1
+      const scale = Math.min(leftW / srcW, leftH / srcH, 1.0); // avoid upscaling blur
       this.mediaImage.setScale(scale);
     } else {
-      // If not loaded for some reason, hide the image
       this.mediaImage.setVisible(false);
     }
-  }
-
-  private tweenIn() {
-    this.tweens.add({
-      targets: this.slideContainer,
-      alpha: 1,
-      duration: this.fadeDur,
-      ease: "quad.out",
-      onComplete: () => (this.transitioning = false),
-    });
-  }
-
-  private tweenOut(onComplete: () => void) {
-    this.tweens.add({
-      targets: this.slideContainer,
-      alpha: 0,
-      duration: this.fadeDur,
-      ease: "quad.in",
-      onComplete,
-    });
   }
 
   private returnToMenu() {
     if (this.transitioning) return;
     this.transitioning = true;
     this.autoTimer?.remove(false);
+    this.setNextEnabled(false);
 
     this.cameras.main.fadeOut(150, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.scene.start("MainMenu");
     });
+  }
+
+  // ---------- NEXT button ----------
+  private createNextButton() {
+    const { width, height } = this.scale;
+
+    // Container
+    this.nextBtn = this.add.container(0, 0).setDepth(9999);
+
+    // Background (rounded rect)
+    this.nextBg = this.add.rectangle(0, 0, 130, 40, 0x1f2937, 0.9)
+      .setStrokeStyle(2, 0x374151, 1)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    // Label
+    this.nextLabel = this.add.text(0, 0, "Next  ▷", {
+      fontFamily: "sans-serif",
+      fontSize: "18px",
+      color: "#e5e7eb",
+    }).setOrigin(0.5);
+
+    this.nextBtn.add([this.nextBg, this.nextLabel]);
+
+    // Initial placement
+    this.layoutNextButton(width, height);
+
+    // Hover / press feedback
+    this.nextBg.on("pointerover", () => {
+      if (!this.nextEnabled) return;
+      this.tweens.add({ targets: this.nextBtn, scale: 1.06, duration: 100, ease: "quad.out" });
+    });
+    this.nextBg.on("pointerout", () => {
+      this.tweens.add({ targets: this.nextBtn, scale: 1.0, duration: 100, ease: "quad.out" });
+    });
+    this.nextBg.on("pointerdown", () => {
+      if (!this.nextEnabled) return;
+      this.tweens.add({ targets: this.nextBtn, scale: 0.96, duration: 60, yoyo: true, ease: "quad.out" });
+      this.nextSlide(true);
+    });
+  }
+
+  private layoutNextButton(width: number, height: number) {
+    const margin = 22;
+    const x = width - margin - (this.nextBg.width / 2);
+    const y = height - margin - (this.nextBg.height / 2);
+    this.nextBtn.setPosition(x, y);
+  }
+
+  private setNextEnabled(enabled: boolean) {
+    this.nextEnabled = enabled;
+    this.nextBg.setAlpha(enabled ? 0.9 : 0.4);
+    this.nextBg.disableInteractive();
+    if (enabled) this.nextBg.setInteractive({ useHandCursor: true });
   }
 }
