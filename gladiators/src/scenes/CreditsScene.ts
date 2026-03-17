@@ -12,8 +12,8 @@ type CreditSlide = {
 // ---- EDIT ME: your credits data ----
 const CREDIT_SLIDES: CreditSlide[] = [
   {
-    name: "Ryan Kristoffer Calipusan",
-    role: "Game Design & Code",
+    name: "skippythedev",
+    role: "Big Boss, Super Sigma Developer, Low Cortisol Teacher",
     blurb: "Core gameplay, systems, and overall direction.",
     imageKey: "ryan",
     imageURL: "/assets/credits/ryan.jpg",
@@ -31,6 +31,13 @@ const CREDIT_SLIDES: CreditSlide[] = [
     blurb: "Score, ambience, and arena sounds.",
     imageKey: "composer",
     imageURL: "/assets/credits/composer.png",
+  },
+   {
+    name: "Moike",
+    role: "Support & Feedback",
+    blurb: "He flies drones, very cool.",
+    imageKey: "lian",
+    imageURL: "/assets/credits/lian.jpeg",
   },
 ];
 
