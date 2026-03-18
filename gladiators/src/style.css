@@ -54,6 +54,9 @@
 
 body {
   margin: 0;
+  padding: 0;
+  overflow: hidden; /* This kills the scrollbars forever */
+  background-color: #000;
 }
 
 h1,

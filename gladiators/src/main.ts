@@ -11,8 +11,8 @@ import OpenMap from './scenes/OpenMap';
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'game',                 // <div id="game"></div> in index.html
-  width: 1024,                    // pick one baseline; 1024x576 == 16:9
-  height: 576,
+  width: 1280,                    // pick one baseline; 1024x576 == 16:9
+  height: 720,
   backgroundColor: '#0b0f1a',
   scene: [
     // Order matters: boot first, then main menu, etc.
