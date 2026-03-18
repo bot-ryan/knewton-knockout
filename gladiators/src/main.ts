@@ -1,7 +1,7 @@
 import './style.css';
 import Phaser from 'phaser';
 
-import Init from './gameinit/GameInit';               // boot scene
+import GameInit from './gameinit/GameInit';               // boot scene
 import MainMenuScene from './scenes/MainMenuScene';
 import HowToPlayScene from './scenes/HowToPlayScene';
 import CreditsScene from './scenes/CreditsScene';
@@ -16,7 +16,7 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: '#0b0f1a',
   scene: [
     // Order matters: boot first, then main menu, etc.
-    Init,
+    GameInit,
     MainMenuScene,
     HowToPlayScene,
     CreditsScene,
