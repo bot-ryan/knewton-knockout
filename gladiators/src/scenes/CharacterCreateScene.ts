@@ -5,8 +5,8 @@ type StatKey = 'strength' | 'dexterity' | 'precision' | 'guard' | 'vitality' | '
 export default class CharacterCreateScene extends Phaser.Scene {
   constructor() { super('CharacterCreate'); }
 
+  // ---------- STATE ----------
   private readonly FREE_POINTS = 9;
-  private readonly HAIR_STYLE_NAMES = ['Bald', 'Buzz', 'Spiky', 'Mohawk', 'Side-sweep'];
   
   private pointsRemaining = this.FREE_POINTS;
   private stats: Record<StatKey, number> = {
@@ -15,23 +15,21 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
   private nameValue = '';
   private skinValue = 128; 
-  private hairValue = 40; 
-  private hairStyleIndex = 0;
 
+  // UI Refs
   private nameInput?: Phaser.GameObjects.DOMElement;
   private pointsText?: Phaser.GameObjects.Text;
   private statTexts: Partial<Record<StatKey, Phaser.GameObjects.Text>> = {};
   private plusButtons: Partial<Record<StatKey, Phaser.GameObjects.Container>> = {};
   private minusButtons: Partial<Record<StatKey, Phaser.GameObjects.Container>> = {};
   private confirmBtn?: Phaser.GameObjects.Container;
-  private hairStyleLabel?: Phaser.GameObjects.Text;
   private stickmanBody?: Phaser.GameObjects.Graphics;
-  private stickmanHair?: Phaser.GameObjects.Graphics;
 
   create() {
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor(0x0b0f1a);
 
+    // --- Layout Constants ---
     const margin = 20;
     const nameH = 90; 
     const leftColW = Math.floor(width * 0.32);
@@ -40,11 +38,13 @@ export default class CharacterCreateScene extends Phaser.Scene {
     const halfW = colRightW / 2;
     const previewH = height - margin * 2;
 
+    // --- PANELS ---
     this.createPanel(margin, margin, leftColW, nameH, "NAME");
     this.createPanel(margin, nameH + margin * 2, leftColW, height - nameH - margin * 3, "SKILL ALLOCATION");
     this.createPanel(colRightX, margin, halfW - 10, previewH, "PREVIEW");
     const appPanel = this.createPanel(colRightX + halfW + 5, margin, halfW - 10, height - margin * 2, "SETTINGS");
 
+    // Name Input (DOM)
     const inputStyle = `width:${leftColW - 40}px; height:30px; background:#0f1422; color:#fff; border:1px solid #22304c; padding:0 8px; font-family:Verdana;`;
     this.nameInput = this.add.dom(margin + 20, margin + 45, 'input', inputStyle).setOrigin(0);
     this.nameInput.addListener('input').on('input', (e: any) => {
@@ -52,45 +52,42 @@ export default class CharacterCreateScene extends Phaser.Scene {
       this.updateButtons();
     });
 
+    // Point Box
     const pPanel = this.add.container(leftColW + 35, nameH + margin * 2 + 10);
     pPanel.add(this.add.rectangle(0, 0, 80, 80, 0x141a2a).setOrigin(0).setStrokeStyle(2, 0x22304c));
     this.pointsText = this.add.text(40, 40, '9', {fontSize: '42px', color: '#e2c16b', fontFamily:'Georgia'}).setOrigin(0.5);
     pPanel.add(this.pointsText);
 
+    // Stats List
     const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
     statKeys.forEach((key, i) => {
       const y = nameH + 110 + (i * 45); 
       this.add.text(margin + 20, y, key.toUpperCase(), { fontSize: '13px', color: '#9aa4b2' });
+      
       const minus = makeIconButton(this, leftColW - 95, y - 4, '–', () => this.decStat(key));
       const valText = this.add.text(leftColW - 60, y - 2, '1', { fontSize: '18px', color: '#fff' }).setOrigin(0.5, 0);
       const plus = makeIconButton(this, leftColW - 45, y - 4, '+', () => this.incStat(key));
+      
       this.statTexts[key] = valText;
-      this.minusButtons[key] = minus; this.plusButtons[key] = plus;
+      this.minusButtons[key] = minus; 
+      this.plusButtons[key] = plus;
     });
 
-    appPanel.add(this.add.text(20, 60, 'Body Color Spectrum', {fontSize:'14px', color:'#9aa4b2'}));
-    new Slider(this, 20, 95, halfW - 60, 0x00ffcc, this.skinValue, v => { 
+    // Body Color Settings (Centered a bit more in the panel)
+    appPanel.add(this.add.text(20, 100, 'BODY COLOR SPECTRUM', {fontSize:'14px', color:'#9aa4b2', fontStyle:'bold'}));
+    new Slider(this, 20, 140, halfW - 60, 0xffffff, this.skinValue, v => { 
         this.skinValue = v; this.redrawStickman(); 
     }, appPanel);
-    
-    appPanel.add(this.add.text(20, 160, 'Hairstyle', {fontSize:'14px', color:'#9aa4b2'}));
-    const hL = makeIconButton(this, 20, 190, '◀', () => this.changeHair(-1));
-    this.hairStyleLabel = this.add.text(halfW / 2, 195, 'Bald', {fontSize:'16px'}).setOrigin(0.5, 0);
-    const hR = makeIconButton(this, halfW - 55, 190, '▶', () => this.changeHair(1));
 
-    appPanel.add(this.add.text(20, 260, 'Hair Color Spectrum', {fontSize:'14px', color:'#9aa4b2'}));
-    new Slider(this, 20, 295, halfW - 60, 0xff00ff, this.hairValue, v => { 
-        this.hairValue = v; this.redrawStickman(); 
-    }, appPanel);
-
-    appPanel.add([hL, hR, this.hairStyleLabel]);
-
-    this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '✓', () => {});
+    // Action Buttons
+    this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '✓', () => {
+        console.log("Saving character:", this.nameValue, this.stats);
+    });
     makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
 
+    // Stickman Preview
     this.stickmanBody = this.add.graphics();
-    this.stickmanHair = this.add.graphics();
-    this.add.container(colRightX + (halfW - 10) / 2, margin + (previewH) / 2, [this.stickmanBody, this.stickmanHair]);
+    this.add.container(colRightX + (halfW - 10) / 2, margin + (previewH) / 2, [this.stickmanBody]);
 
     this.refreshStatsUI();
     this.redrawStickman();
@@ -102,19 +99,27 @@ export default class CharacterCreateScene extends Phaser.Scene {
   }
 
   private redrawStickman() {
-    if (!this.stickmanBody || !this.stickmanHair) return;
+    if (!this.stickmanBody) return;
     const skin = this.getColorFromSpectrum(this.skinValue);
-    const hair = this.getColorFromSpectrum(this.hairValue);
-    const g = this.stickmanBody; const h = this.stickmanHair;
+    const g = this.stickmanBody; 
     const s = 1.4; 
 
-    g.clear(); h.clear();
+    g.clear();
     g.fillStyle(skin, 1);
 
-    // Body Geometry (No outlines)
+    // Head
     g.fillCircle(0, -90 * s, 35 * s); 
-    g.beginPath().moveTo(-15 * s, -60 * s).lineTo(-25 * s, -10 * s).lineTo(25 * s, -10 * s).lineTo(15 * s, -60 * s).closePath().fillPath();
 
+    // Torso
+    g.beginPath();
+    g.moveTo(-15 * s, -60 * s);
+    g.lineTo(-25 * s, -10 * s);
+    g.lineTo(25 * s, -10 * s);
+    g.lineTo(15 * s, -60 * s);
+    g.closePath();
+    g.fillPath();
+
+    // Arms
     const drawLimb = (dir: number, isArm: boolean) => {
       g.beginPath();
       if(isArm) {
@@ -125,16 +130,6 @@ export default class CharacterCreateScene extends Phaser.Scene {
       g.closePath().fillPath();
     };
     drawLimb(-1, true); drawLimb(1, true); drawLimb(-1, false); drawLimb(1, false);
-
-    h.fillStyle(hair, 1);
-    if (this.hairStyleIndex === 1) h.fillEllipse(0, -135 * s, 25 * s, 10 * s);
-    else if (this.hairStyleIndex === 2) {
-        for(let i=0; i<6; i++) {
-            const px = -28*s + (i*10*s);
-            h.beginPath().moveTo(px, -125*s).lineTo(px+5*s, -155*s).lineTo(px+10*s, -125*s).closePath().fillPath();
-        }
-    } else if (this.hairStyleIndex === 3) h.fillRoundedRect(-5 * s, -165 * s, 10 * s, 40 * s, 4 * s);
-    else if (this.hairStyleIndex === 4) h.beginPath().moveTo(-30 * s, -115 * s).lineTo(0 * s, -145 * s).lineTo(35 * s, -115 * s).lineTo(0 * s, -100 * s).closePath().fillPath();
   }
 
   private createPanel(x: number, y: number, w: number, h: number, title: string) {
@@ -143,18 +138,18 @@ export default class CharacterCreateScene extends Phaser.Scene {
     container.add(this.add.text(15, 10, title, { fontSize: '11px', color: '#5c6a7e', fontStyle: 'bold' }));
     return container;
   }
+
   private incStat(key: StatKey) { if(this.pointsRemaining > 0) { this.stats[key]++; this.pointsRemaining--; this.refreshStatsUI(); } }
   private decStat(key: StatKey) { if(this.stats[key] > 1) { this.stats[key]--; this.pointsRemaining++; this.refreshStatsUI(); } }
-  private changeHair(dir: number) { 
-    this.hairStyleIndex = Phaser.Math.Wrap(this.hairStyleIndex + dir, 0, this.HAIR_STYLE_NAMES.length);
-    this.hairStyleLabel?.setText(this.HAIR_STYLE_NAMES[this.hairStyleIndex]);
-    this.redrawStickman();
-  }
+  
   private refreshStatsUI() {
-    (Object.keys(this.stats) as StatKey[]).forEach(k => { if(this.statTexts[k]) this.statTexts[k]!.setText(String(this.stats[k])); });
+    (Object.keys(this.stats) as StatKey[]).forEach(k => {
+        if(this.statTexts[k]) this.statTexts[k]!.setText(String(this.stats[k]));
+    });
     if(this.pointsText) this.pointsText.setText(String(this.pointsRemaining));
     this.updateButtons();
   }
+
   private updateButtons() {
     const canAdd = this.pointsRemaining > 0;
     (Object.keys(this.stats) as StatKey[]).forEach(k => {
@@ -165,7 +160,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
   }
 }
 
-// --- HELPERS ---
+// Helpers
 function makeIconButton(scene: Phaser.Scene, x: number, y: number, glyph: string, onClick: () => void) {
   const bg = scene.add.rectangle(0, 0, 28, 28, 0x1c2740).setStrokeStyle(1, 0x2a3a5f).setOrigin(0);
   const txt = scene.add.text(14, 14, glyph, { fontSize: '16px' }).setOrigin(0.5);
@@ -182,7 +177,6 @@ function setButtonEnabled(c: Phaser.GameObjects.Container, e: boolean) {
   c.setAlpha(e ? 1 : 0.3); e ? c.setInteractive() : c.disableInteractive();
 }
 
-// --- FIXED SLIDER CLASS ---
 class Slider {
   public container: Phaser.GameObjects.Container;
   private thumb: Phaser.GameObjects.Rectangle;
@@ -200,7 +194,6 @@ class Slider {
     this.container.setInteractive(new Phaser.Geom.Rectangle(0, -20, width, 40), Phaser.Geom.Rectangle.Contains);
     
     const handleInput = (p: Phaser.Input.Pointer) => {
-      // THE FIX: Using getLocalPoint to ignore parent container offsets
       const localPoint = this.container.getLocalPoint(p.x, p.y);
       this.value = Phaser.Math.Clamp((localPoint.x / this.width) * 255, 0, 255);
       this.updateThumb();

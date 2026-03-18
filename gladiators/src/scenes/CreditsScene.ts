@@ -337,14 +337,22 @@ export default class CreditsScene extends Phaser.Scene {
     // Hover / press feedback
     this.nextBg.on("pointerover", () => {
       if (!this.nextEnabled) return;
+      this.tweens.killTweensOf(this.nextBtn); // <--- Kills old tweens
       this.tweens.add({ targets: this.nextBtn, scale: 1.06, duration: 100, ease: "quad.out" });
     });
     this.nextBg.on("pointerout", () => {
+      this.tweens.killTweensOf(this.nextBtn); // <--- Kills old tweens
       this.tweens.add({ targets: this.nextBtn, scale: 1.0, duration: 100, ease: "quad.out" });
     });
     this.nextBg.on("pointerdown", () => {
       if (!this.nextEnabled) return;
-      this.tweens.add({ targets: this.nextBtn, scale: 0.96, duration: 60, yoyo: true, ease: "quad.out" });
+      this.tweens.killTweensOf(this.nextBtn); // <--- Kills old tweens
+      this.tweens.add({ targets: this.nextBtn, scale: 0.96, duration: 60, yoyo: true, ease: "quad.out", 
+        onComplete: () => {
+            // Optional: ensure it snaps back to hover size if mouse is still on it
+            this.tweens.add({ targets: this.nextBtn, scale: 1.06, duration: 60 });
+        }
+      });
       this.nextSlide(true);
     });
   }
@@ -376,18 +384,24 @@ export default class CreditsScene extends Phaser.Scene {
     // Hover / press feedback
     this.prevBg.on("pointerover", () => {
       if (!this.prevEnabled) return;
+      this.tweens.killTweensOf(this.prevBtn); // <--- Kills old tweens
       this.tweens.add({ targets: this.prevBtn, scale: 1.06, duration: 100, ease: "quad.out" });
     });
     this.prevBg.on("pointerout", () => {
+      this.tweens.killTweensOf(this.prevBtn); // <--- Kills old tweens
       this.tweens.add({ targets: this.prevBtn, scale: 1.0, duration: 100, ease: "quad.out" });
     });
     this.prevBg.on("pointerdown", () => {
       if (!this.prevEnabled) return;
-      this.tweens.add({ targets: this.prevBtn, scale: 0.96, duration: 60, yoyo: true, ease: "quad.out" });
+      this.tweens.killTweensOf(this.prevBtn); // <--- Kills old tweens
+      this.tweens.add({ targets: this.prevBtn, scale: 0.96, duration: 60, yoyo: true, ease: "quad.out",
+        onComplete: () => {
+           this.tweens.add({ targets: this.prevBtn, scale: 1.06, duration: 60 });
+        }
+      });
       this.prevSlide(true);
     });
   }
-
   private layoutNextButton(width: number, height: number) {
     const margin = 22;
     const x = width - margin - (this.nextBg.width / 2);

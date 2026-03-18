@@ -12,7 +12,7 @@ export default class MainMenuScene extends Phaser.Scene {
   private hintText!: Phaser.GameObjects.Text;
   private menuEntries: MenuEntry[] = [];
   private menuTexts: Phaser.GameObjects.Text[] = [];
-  private selectedIndex = 0;
+  private selectedIndex = -1; // Changed to -1 so the initial setSelectedIndex(0) registers as a change
 
   constructor() {
     super("MainMenu");
@@ -49,21 +49,18 @@ export default class MainMenuScene extends Phaser.Scene {
       {
         label: "New Game",
         action: () => {
-          // Flowchart: New Game → Go to Character Creation Screen
           this.transitionTo("CharacterCreate");
         },
       },
       {
         label: "How to Play",
         action: () => {
-          // Flowchart: View "How to Play" Page
           this.transitionTo("HowToPlay");
         },
       },
       {
         label: "Credits",
         action: () => {
-          // Flowchart: View "Credits" Page
           this.transitionTo("Credits");
         },
       },
@@ -114,12 +111,16 @@ export default class MainMenuScene extends Phaser.Scene {
 
   private moveSelection(delta: number) {
     const max = this.menuEntries.length;
-    this.selectedIndex = (this.selectedIndex + delta + max) % max;
+    // Calculate the new index, using Math.abs/wrap logic to handle negative numbers safely
+    const newIndex = (this.selectedIndex + delta + max) % max;
+    this.setSelectedIndex(newIndex);
     // this.sound.play('ui-move', { volume: 0.6 });
-    this.updateHighlight();
   }
 
   private setSelectedIndex(i: number) {
+    // THE FIX: Prevent the infinite loop if the index hasn't actually changed
+    if (this.selectedIndex === i) return; 
+    
     this.selectedIndex = i;
     this.updateHighlight();
   }
