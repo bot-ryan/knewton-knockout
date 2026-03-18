@@ -55,6 +55,12 @@ export default class CharacterCreateScene extends Phaser.Scene {
         
         // Positioned at relative center: (PanelWidth/2, PanelHeight/2 + offset for title)
         this.nameInput = this.add.dom(leftColW / 2, (nameH / 2) + 8, 'input', inputStyle);
+
+        // Access the underlying HTML element to set the character limit
+        const inputElement = this.nameInput.node as HTMLInputElement;
+        inputElement.maxLength = 20; // Hard limit at the browser level
+        inputElement.placeholder = "Enter name...";
+
         namePanel.add(this.nameInput);
 
         this.nameInput.addListener('input').on('input', (e: any) => {
