@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { faker } from '@faker-js/faker';
 
 type StatKey = 'strength' | 'dexterity' | 'precision' | 'guard' | 'vitality' | 'arcane';
 
@@ -36,14 +37,12 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
         // Load banned words from the preloaded asset
         const bannedWordsText = this.cache.text.get('bannedWords');
-        this.BANNED_WORDS = bannedWordsText
-            .split('\n')
-            .map((w: string) => w.trim().toLowerCase())
-            .filter((w: string) => w.length > 0);
-
-        // DEBUG: Log first 10 banned words
-        console.log('Banned Words (first 10):', this.BANNED_WORDS.slice(0, 10));
-        console.log('Total banned words loaded:', this.BANNED_WORDS.length);
+        if (bannedWordsText) {
+            this.BANNED_WORDS = bannedWordsText
+                .split('\n')
+                .map((w: string) => w.trim().toLowerCase())
+                .filter((w: string) => w.length > 0);
+        }
 
         // --- Layout Constants ---
         const margin = 20;
@@ -62,7 +61,17 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const skillPanel = this.createPanel(margin, skillPanelY, leftColW, skillPanelH, "SKILL ALLOCATION");
         
         this.createPanel(colRightX, margin, halfW - 10, previewH, "PREVIEW");
-        const settingsPanel = this.createPanel(colRightX + halfW + 5, margin, halfW - 10, height - margin * 2, "SETTINGS");
+        
+        const settingsPanelW = halfW - 10;
+        const settingsPanel = this.createPanel(colRightX + halfW + 5, margin, settingsPanelW, height - margin * 2, "SETTINGS");
+
+        // --- NEW: RANDOMIZE BUTTON ---
+        // Placed in the top right corner of the Settings Panel
+        const randomizeBtn = makeTransparentIconButton(this, settingsPanelW - 55, 45, '🎲', '40px', () => {
+            this.randomizeAll();
+        });
+        settingsPanel.add(randomizeBtn);
+      
 
         // --- NAME INPUT (Centered & Validated) ---
         const inputW = leftColW - 40;
@@ -71,7 +80,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
         
         this.nameInput = this.add.dom(leftColW / 2, (nameH / 2), 'input', inputStyle);
         const el = this.nameInput.node as HTMLInputElement;
-        el.maxLength = 20; //
+        el.maxLength = 40; 
         el.placeholder = "Enter Name...";
 
         // Error message label
@@ -145,7 +154,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
         // Color Picker & Buttons
         settingsPanel.add(this.add.text(20, 80, 'BODY COLOR PALETTE', {fontSize:'14px', color:'#9aa4b2', fontStyle:'bold'}));
-        const pickerSize = (halfW - 10) * 0.7;
+        const pickerSize = settingsPanelW * 0.7;
         new ColorPicker(this, 20, 110, pickerSize, (c) => { this.currentSkinColor = c; this.redrawStickman(); }, settingsPanel);
 
         // Action Buttons with Auto-Correction
@@ -171,8 +180,49 @@ export default class CharacterCreateScene extends Phaser.Scene {
         this.redrawStickman();
     }
 
+    // --- NEW: THE RANDOMIZE LOGIC ---
+    private randomizeAll() {
+        // 1. Randomize Name
+        const randomName = this.generateVikingName();
+        this.nameValue = randomName;
+        if (this.nameInput) {
+            (this.nameInput.node as HTMLInputElement).value = randomName;
+        }
+        
+        // Show success text
+        if (this.nameErrorText) {
+            this.nameErrorText.setText("RANDOMIZED!");
+            this.nameErrorText.setColor('#12a150'); // Green
+            this.time.delayedCall(1500, () => {
+                this.nameErrorText?.setText('');
+                this.nameErrorText?.setColor('#ff4d4d'); // Revert back to error red
+            });
+        }
+
+        // 2. Randomize Color (Generate a random valid hex color)
+        this.currentSkinColor = Math.floor(Math.random() * 0xffffff);
+        this.redrawStickman();
+
+        // 3. Randomize Stats
+        const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
+        
+        // Reset to base 1
+        statKeys.forEach(k => this.stats[k] = 1);
+        this.pointsRemaining = this.FREE_POINTS;
+
+        // Distribute points randomly
+        while (this.pointsRemaining > 0) {
+            const randomStat = Phaser.Utils.Array.GetRandom(statKeys);
+            this.stats[randomStat]++;
+            this.pointsRemaining--;
+        }
+
+        // 4. Refresh UI
+        this.refreshStatsUI();
+    }
+
     private validateName(name: string): { valid: boolean; error: string } {
-        const trimmed = name.trim(); //
+        const trimmed = name.trim(); 
         if (trimmed.length < 3) return { valid: false, error: "NAME TOO SHORT" };
         if (!/^[a-zA-Z0-9 ]*$/.test(name)) return { valid: false, error: "NO SPECIAL CHARS" };
         if (this.BANNED_WORDS.some(w => name.toLowerCase().includes(w))) return { valid: false, error: "BANNED WORD" };
@@ -181,7 +231,9 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
     private updateButtons() {
         const nameStatus = this.validateName(this.nameValue);
-        if (this.nameErrorText) this.nameErrorText.setText(nameStatus.error);
+        if (this.nameErrorText && this.nameErrorText.text !== "RANDOMIZED!") {
+            this.nameErrorText.setText(nameStatus.error);
+        }
         const canAdd = this.pointsRemaining > 0;
         (Object.keys(this.stats) as StatKey[]).forEach(k => {
             if(this.plusButtons[k]) setButtonEnabled(this.plusButtons[k]!, canAdd);
@@ -214,10 +266,19 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
     private incStat(key: StatKey) { if(this.pointsRemaining > 0) { this.stats[key]++; this.pointsRemaining--; this.refreshStatsUI(); } }
     private decStat(key: StatKey) { if(this.stats[key] > 1) { this.stats[key]--; this.pointsRemaining++; this.refreshStatsUI(); } }
+    
     private refreshStatsUI() {
         (Object.keys(this.stats) as StatKey[]).forEach(k => { if(this.statTexts[k]) this.statTexts[k]!.setText(String(this.stats[k])); });
         if(this.pointsText) this.pointsText.setText(String(this.pointsRemaining));
         this.updateButtons();
+    }
+
+    private generateVikingName(): string {
+        const firstName = faker.person.firstName('male'); 
+        const title = faker.word.adjective();
+        const creature = faker.animal.type();
+        const fullName = `${firstName} the ${title} ${creature}`;
+        return fullName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
 }
 
@@ -250,6 +311,23 @@ function makeIconButton(scene: Phaser.Scene, x: number, y: number, glyph: string
     const txt = scene.add.text(14, 14, glyph, { fontSize: '16px' }).setOrigin(0.5);
     const c = scene.add.container(x, y, [bg, txt]).setSize(28, 28);
     (c as any).clickTarget = bg;
+    return c;
+}
+
+function makeTransparentIconButton(scene: Phaser.Scene, x: number, y: number, glyph: string, fontSize: string, onClick: () => void) {
+    // We add padding here to prevent the "sliced" top effect
+    const txt = scene.add.text(0, 0, glyph, { 
+        fontSize,
+        padding: { top: 10, bottom: 10, left: 5, right: 5 } // Forces extra rendering space
+    }).setOrigin(0.5);
+
+    const hitArea = scene.add.zone(0, 0, 50, 50) // Made hit area slightly larger for better mobile/mouse feel
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', onClick);
+
+    const c = scene.add.container(x, y, [hitArea, txt]).setSize(50, 50);
+    (c as any).clickTarget = hitArea;
     return c;
 }
 
