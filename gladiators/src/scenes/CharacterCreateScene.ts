@@ -102,7 +102,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
         statKeys.forEach((key, i) => {
             const y = 110 + (i * 45); 
             
-            const label = this.add.text(20, y, key.toUpperCase(), { fontSize: '13px', color: '#9aa4b2' })
+            const label = this.add.text(20, y, key.toUpperCase(), { fontSize: '22px', color: '#9aa4b2' })
                 .setInteractive({ useHandCursor: true });
 
             label.on('pointerover', () => {
