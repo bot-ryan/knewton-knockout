@@ -16,7 +16,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
     private currentSkinColor = 0x3498db; 
 
     // Rules & Lists
-    private readonly BANNED_WORDS = ['badword1', 'badword2']; // Add more here
+    private BANNED_WORDS: string[] = [];
     private readonly DUMMY_NAMES = ["The Bad Mouth", "Silly Goose", "Keyboard Masher", "Default Dave", "Mr. No-Name"];
 
     // UI Refs
@@ -33,6 +33,17 @@ export default class CharacterCreateScene extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
         this.cameras.main.setBackgroundColor(0x0b0f1a);
+
+        // Load banned words from the preloaded asset
+        const bannedWordsText = this.cache.text.get('bannedWords');
+        this.BANNED_WORDS = bannedWordsText
+            .split('\n')
+            .map((w: string) => w.trim().toLowerCase())
+            .filter((w: string) => w.length > 0);
+
+        // DEBUG: Log first 10 banned words
+        console.log('Banned Words (first 10):', this.BANNED_WORDS.slice(0, 10));
+        console.log('Total banned words loaded:', this.BANNED_WORDS.length);
 
         // --- Layout Constants ---
         const margin = 20;

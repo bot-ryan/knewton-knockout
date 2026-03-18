@@ -10,6 +10,9 @@ export default class Init extends Phaser.Scene {
     // 1. Tell Phaser to queue the photos
     preloadGamePhotos(this);
     
+    // Add the 'src/' prefix to match your folder structure exactly
+  this.load.text('bannedWords', 'src/assets/banned_words.txt');
+    
     // Optional: Add a simple loading text so you know it's working
     const { width, height } = this.scale;
     this.add.text(width / 2, height / 2, 'Loading Assets...', { color: '#ffffff' }).setOrigin(0.5);
