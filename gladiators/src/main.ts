@@ -25,7 +25,7 @@ const config: Phaser.Types.Core.GameConfig = {
   ],
   dom: { createContainer: true }, // required for HTML <input> in CharacterCreate
   scale: {
-    mode: Phaser.Scale.EXPAND,    // responsive sizing
+    mode: Phaser.Scale.FIT,    // responsive sizing
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   // Optional tweaks depending on your art style:
