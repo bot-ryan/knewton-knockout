@@ -77,7 +77,10 @@ export default class CharacterCreateScene extends Phaser.Scene {
         namePanel.add([this.nameInput, this.nameErrorText]);
 
         this.nameInput.addListener('input').on('input', (e: any) => {
-            this.nameValue = e.target.value;
+            // Only allow letters (a-z, A-Z) and spaces
+            const filtered = e.target.value.replace(/[^a-zA-Z ]/g, '');
+            e.target.value = filtered;
+            this.nameValue = filtered;
             this.updateButtons();
         });
 
@@ -157,7 +160,7 @@ this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '
             if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = dummyName;
             
             if (this.nameErrorText) {
-                this.nameErrorText.setText("BANNED NAME: Swapped to " + dummyName);
+                this.nameErrorText.setText("I WARNED YOU!!");
                 this.time.delayedCall(3000, () => { if(this.nameErrorText) this.nameErrorText.setText(''); });
             }
         }
@@ -192,9 +195,9 @@ this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '
     }
 
     private validateName(name: string): { valid: boolean; error: string } {
-        const trimmed = name.trim(); 
-        if (trimmed.length === 0) return { valid: false, error: "NAME REQUIRED" };
-        if (trimmed.length < 3) return { valid: false, error: "NAME TOO SHORT" };
+        //const trimmed = name.trim(); 
+        //if (trimmed.length === 0) return { valid: false, error: "NAME REQUIRED" };
+        //if (trimmed.length < 3) return { valid: false, error: "NAME TOO SHORT" };
         if (this.BANNED_WORDS.some(w => name.toLowerCase().includes(w))) return { valid: false, error: "BANNED WORD" };
         return { valid: true, error: "" };
     }
