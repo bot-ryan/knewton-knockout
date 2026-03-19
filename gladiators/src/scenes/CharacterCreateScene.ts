@@ -64,6 +64,14 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const randomizeBtn = makeTransparentIconButton(this, settingsPanelW - 55, 45, '🎲', '40px', cursorTooltip, () => { this.randomizeAll(); });
         settingsPanel.add(randomizeBtn);
 
+        // Tooltip for Reset
+        const resetTooltip = this.add.text(0, 0, "Reset\nCharacter", {
+            fontSize: '12px', backgroundColor: '#000000', color: '#ffffff', padding: { x: 8, y: 4 }, fontFamily: 'Verdana'
+        }).setOrigin(0).setDepth(100).setAlpha(0);
+
+        const resetBtn = makeTransparentIconButton(this, settingsPanelW - 55 - 50, 45, '↻', '40px', resetTooltip, () => { this.resetAll(); });
+        settingsPanel.add(resetBtn);
+
         // Name Input + Validation
         const inputW = leftColW - 40;
         const inputH = 30;
@@ -191,6 +199,17 @@ this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '
             this.stats[Phaser.Utils.Array.GetRandom(statKeys)]++;
             this.pointsRemaining--;
         }
+        this.refreshStatsUI();
+    }
+
+    private resetAll() {
+        this.nameValue = '';
+        if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = '';
+        this.currentSkinColor = 0xffffff;
+        this.redrawStickman();
+        const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
+        statKeys.forEach(k => this.stats[k] = 1);
+        this.pointsRemaining = this.FREE_POINTS;
         this.refreshStatsUI();
     }
 
