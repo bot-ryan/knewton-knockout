@@ -102,11 +102,11 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
         const statDescriptions: Record<StatKey, string> = {
             strength: "Increases sword damage, improves shove strength and resistance, and lets you use more melee weapons (except daggers). You also look bigger!",
-dexterity: "Increases dagger and bow damage, improves speed and movement, and lets you use daggers and bows.",
-precision: "Increases the chance to land hits and deal critical strikes.",
-guard: "Increases the chance to block and parry attacks.",
-vitality: "Increases total health and stamina.",
-arcane: "Unlocks spells and potions while boosting spell power."
+            dexterity: "Increases dagger and bow damage, improves speed and movement, and lets you use daggers and bows.",
+            precision: "Increases the chance to land hits and deal critical strikes.",
+            guard: "Increases the chance to block and parry attacks.",
+            vitality: "Increases total health and stamina.",
+            arcane: "Unlocks spells and potions while boosting spell power."
         };
 
         const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
