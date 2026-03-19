@@ -173,7 +173,7 @@ this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '
         makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
 
         this.stickmanBody = this.add.graphics();
-        this.add.container(colRightX + (halfW - 10) / 2, margin + (previewH) / 2, [this.stickmanBody]);
+        this.add.container(colRightX + (halfW - 10) / 2, margin + (previewH) * 0.37, [this.stickmanBody]);
         this.refreshStatsUI();
         this.redrawStickman();
     }
