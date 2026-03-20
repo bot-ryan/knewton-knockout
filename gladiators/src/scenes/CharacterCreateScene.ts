@@ -29,6 +29,9 @@ export default class CharacterCreateScene extends Phaser.Scene {
     private minusButtons: Partial<Record<StatKey, Phaser.GameObjects.Container>> = {};
     private confirmBtn?: Phaser.GameObjects.Container;
     private stickmanBody?: Phaser.GameObjects.Graphics;
+    
+    // NEW: Refs for secondary stats display in the preview panel
+    private secondaryStatTexts: Record<string, Phaser.GameObjects.Text> = {};
 
     create() {
         const { width, height } = this.scale;
@@ -109,7 +112,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
         skillPanel.add(this.descText);
 
         const statDescriptions: Record<StatKey, string> = {
-            strength: "Increases sword damage, improves shove strength and resistance, and lets you use more melee weapons (except daggers). You also look bigger!",
+            strength: "Increases base and sword damage, improves shove strength and resistance, and lets you use more melee weapons (except daggers). You also look bigger!",
             dexterity: "Increases dagger and bow damage, improves speed and movement, and lets you use daggers and bows.",
             precision: "Increases the chance to land hits and deal critical strikes.",
             guard: "Increases the chance to block and parry attacks.",
@@ -145,43 +148,57 @@ export default class CharacterCreateScene extends Phaser.Scene {
         settingsPanel.add(this.add.text(20, 80, 'BODY COLOR PALETTE', {fontSize:'14px', color:'#9aa4b2', fontStyle:'bold'}));
         new ColorPicker(this, 20, 110, settingsPanelW * 0.7, (c) => { this.currentSkinColor = c; this.redrawStickman(); }, settingsPanel);
 
-       // --- UPDATED CONFIRM LOGIC ---
-this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '✓', () => {
-    const trimmedName = this.nameValue.trim();
-    
-    // 1. Check for Empty String first
-    if (trimmedName === "") {
-        this.nameValue = "Nameless";
-        if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = "Nameless";
-        if (this.nameErrorText) {
-            this.nameErrorText.setText("No name? You are now 'Nameless'");
-            this.time.delayedCall(3000, () => { if(this.nameErrorText) this.nameErrorText.setText(''); });
-        }
-    } 
-    // 2. Check for Banned Words
-    else {
-        const nameStatus = this.validateName(this.nameValue);
-        if (!nameStatus.valid) {
-            // Swap to a random dummy name
-            const dummyName = Phaser.Utils.Array.GetRandom(this.DUMMY_NAMES);
-            this.nameValue = dummyName;
-            if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = dummyName;
+        // --- UPDATED CONFIRM LOGIC ---
+        this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '✓', () => {
+            const trimmedName = this.nameValue.trim();
             
-            if (this.nameErrorText) {
-                this.nameErrorText.setText("I WARNED YOU!!");
-                this.time.delayedCall(3000, () => { if(this.nameErrorText) this.nameErrorText.setText(''); });
+            if (trimmedName === "") {
+                this.nameValue = "Nameless";
+                if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = "Nameless";
+                if (this.nameErrorText) {
+                    this.nameErrorText.setText("No name? You are now 'Nameless'");
+                    this.time.delayedCall(3000, () => { if(this.nameErrorText) this.nameErrorText.setText(''); });
+                }
+            } 
+            else {
+                const nameStatus = this.validateName(this.nameValue);
+                if (!nameStatus.valid) {
+                    const dummyName = Phaser.Utils.Array.GetRandom(this.DUMMY_NAMES);
+                    this.nameValue = dummyName;
+                    if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = dummyName;
+                    
+                    if (this.nameErrorText) {
+                        this.nameErrorText.setText("I WARNED YOU!!");
+                        this.time.delayedCall(3000, () => { if(this.nameErrorText) this.nameErrorText.setText(''); });
+                    }
+                }
             }
-        }
-    }
 
-    console.log("Character Saved!", this.nameValue, this.stats);
-    // Proceed to GameScene
-});
+            console.log("Character Saved!", this.nameValue, this.stats);
+            // Proceed to GameScene
+        });
 
         makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
 
         this.stickmanBody = this.add.graphics();
         this.add.container(colRightX + (halfW - 10) / 2, margin + (previewH) * 0.37, [this.stickmanBody]);
+
+        // --- NEW: SECONDARY STATS UI IN PREVIEW PANEL ---
+        const previewPanelLeft = colRightX + 20;
+        const previewPanelRight = colRightX + (halfW - 10) / 2 + 10;
+        const statsBaseY = margin + (previewH) * 0.65; // Position below stickman
+        const lineSpacing = 35;
+        const statStyle = { fontSize: '13px', color: '#e2c16b', fontFamily: 'Verdana' }; // Using gold color to match points text
+
+        this.secondaryStatTexts.hp = this.add.text(previewPanelLeft, statsBaseY, 'HP: 0', statStyle);
+        this.secondaryStatTexts.mp = this.add.text(previewPanelLeft, statsBaseY + lineSpacing, 'MP: 0', statStyle);
+        this.secondaryStatTexts.atk = this.add.text(previewPanelLeft, statsBaseY + lineSpacing * 2, 'ATK: 0', statStyle);
+
+        this.secondaryStatTexts.speed = this.add.text(previewPanelRight, statsBaseY, 'SPD: 0', statStyle);
+        this.secondaryStatTexts.block = this.add.text(previewPanelRight, statsBaseY + lineSpacing, 'BLK: 0', statStyle);
+        this.secondaryStatTexts.crit = this.add.text(previewPanelRight, statsBaseY + lineSpacing * 2, 'CRT: 0', statStyle);
+
+        // Initialize UI with starting values
         this.refreshStatsUI();
         this.redrawStickman();
     }
@@ -214,9 +231,6 @@ this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '
     }
 
     private validateName(name: string): { valid: boolean; error: string } {
-        //const trimmed = name.trim(); 
-        //if (trimmed.length === 0) return { valid: false, error: "NAME REQUIRED" };
-        //if (trimmed.length < 3) return { valid: false, error: "NAME TOO SHORT" };
         if (this.BANNED_WORDS.some(w => name.toLowerCase().includes(w))) return { valid: false, error: "BANNED WORD" };
         return { valid: true, error: "" };
     }
@@ -233,7 +247,6 @@ this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '
             if(this.minusButtons[k]) setButtonEnabled(this.minusButtons[k]!, this.stats[k] > 1);
         });
 
-        // Banned names no longer disable the button, only point count does
         if(this.confirmBtn) setButtonEnabled(this.confirmBtn, this.pointsRemaining === 0);
     }
 
@@ -261,9 +274,29 @@ this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '
 
     private incStat(key: StatKey) { if(this.pointsRemaining > 0) { this.stats[key]++; this.pointsRemaining--; this.refreshStatsUI(); } }
     private decStat(key: StatKey) { if(this.stats[key] > 1) { this.stats[key]--; this.pointsRemaining++; this.refreshStatsUI(); } }
+    
+    // --- UPDATED REFRESH LOGIC ---
     private refreshStatsUI() {
+        // Update Primary Stats
         (Object.keys(this.stats) as StatKey[]).forEach(k => { if(this.statTexts[k]) this.statTexts[k]!.setText(String(this.stats[k])); });
         if(this.pointsText) this.pointsText.setText(String(this.pointsRemaining));
+        
+        // Update Derived (Secondary) Stats using formulas
+        const hp = 10 + (this.stats.vitality * 5);
+        const mp = 5 + (this.stats.arcane * 3);
+        const minAtk = this.stats.strength;
+        const maxAtk = this.stats.strength + 2;
+        const speed = 100 + (this.stats.dexterity * 5);
+        const block = this.stats.guard * 2;
+        const crit = (this.stats.precision * 1.5).toFixed(1);
+
+        if (this.secondaryStatTexts.hp) this.secondaryStatTexts.hp.setText(`HP: ${hp}`);
+        if (this.secondaryStatTexts.mp) this.secondaryStatTexts.mp.setText(`MP: ${mp}`);
+        if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATK: ${minAtk}-${maxAtk}`);
+        if (this.secondaryStatTexts.speed) this.secondaryStatTexts.speed.setText(`SPD: ${speed}`);
+        if (this.secondaryStatTexts.block) this.secondaryStatTexts.block.setText(`BLK: ${block}%`);
+        if (this.secondaryStatTexts.crit) this.secondaryStatTexts.crit.setText(`CRT: ${crit}%`);
+
         this.updateButtons();
     }
 
