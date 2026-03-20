@@ -196,7 +196,8 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
         this.secondaryStatTexts.speed = this.add.text(previewPanelRight, statsBaseY, 'SPD: 0', statStyle);
         this.secondaryStatTexts.block = this.add.text(previewPanelRight, statsBaseY + lineSpacing, 'BLK: 0', statStyle);
-        this.secondaryStatTexts.crit = this.add.text(previewPanelRight, statsBaseY + lineSpacing * 2, 'CRT: 0', statStyle);
+        this.secondaryStatTexts.hit = this.add.text(previewPanelRight, statsBaseY + lineSpacing * 2, 'HIT: 0', statStyle);
+        this.secondaryStatTexts.crit = this.add.text(previewPanelRight, statsBaseY + lineSpacing * 3, 'CRT: 0', statStyle);
 
         // Initialize UI with starting values
         this.refreshStatsUI();
@@ -288,13 +289,15 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const maxAtk = this.stats.strength + 2;
         const speed = 100 + (this.stats.dexterity * 5);
         const block = this.stats.guard * 2;
-        const crit = (this.stats.precision * 1.5).toFixed(1);
+        const hitChance = this.stats.precision * 2;
+        const crit = ((this.stats.precision - 1) * 0.2).toFixed(1);
 
         if (this.secondaryStatTexts.hp) this.secondaryStatTexts.hp.setText(`HP: ${hp}`);
         if (this.secondaryStatTexts.mp) this.secondaryStatTexts.mp.setText(`MP: ${mp}`);
         if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATK: ${minAtk}-${maxAtk}`);
         if (this.secondaryStatTexts.speed) this.secondaryStatTexts.speed.setText(`SPD: ${speed}`);
         if (this.secondaryStatTexts.block) this.secondaryStatTexts.block.setText(`BLK: ${block}%`);
+        if (this.secondaryStatTexts.hit) this.secondaryStatTexts.hit.setText(`HIT: ${hitChance}%`);
         if (this.secondaryStatTexts.crit) this.secondaryStatTexts.crit.setText(`CRT: ${crit}%`);
 
         this.updateButtons();
