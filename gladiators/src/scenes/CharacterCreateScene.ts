@@ -186,6 +186,38 @@ export default class CharacterCreateScene extends Phaser.Scene {
                     }
                 }
             }
+
+            // Calculate secondary stats
+            const hp = 10 + (this.stats.vitality * 5);
+            const mp = 5 + (this.stats.arcane * 3);
+            const speed = 100 + (this.stats.dexterity * 5);
+            const block = this.stats.guard * 2;
+            const hitChance = this.stats.precision * 2;
+            const crit = (this.stats.precision - 1) * 0.2;
+
+            // Prepare character data
+            const characterData = {
+                name: this.nameValue,
+                appearance: {
+                    skinColor: this.currentSkinColor,
+                    hairColor: 0x8B4513, // Default brown hair
+                    hairStyle: 1, // Default style
+                    expression: this.currentExpression
+                },
+                stats: { ...this.stats },
+                secondaryStats: {
+                    hp,
+                    mp,
+                    atk: { min: this.stats.strength, max: this.stats.strength + 2 },
+                    speed,
+                    block,
+                    hitChance,
+                    crit
+                }
+            };
+
+            // Navigate to OpenMap with character data
+            this.scene.start('OpenMap', { character: characterData });
         });
 
         makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
