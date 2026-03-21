@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { faker } from '@faker-js/faker';
 
 type StatKey = 'strength' | 'dexterity' | 'precision' | 'guard' | 'vitality' | 'arcane';
-type Expression = 'poker' | 'happy' | 'sad' | 'angry';
+// Cleaned up the Expression type to the final 10
+type Expression = 'poker' | 'happy' | 'sad' | 'angry' | 'wink' | 'determined' | 'battle_cry' | 'smirk' | 'fearful' | 'nervous';
 
 export default class CharacterCreateScene extends Phaser.Scene {
     constructor() { super('CharacterCreate'); }
@@ -20,6 +21,16 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
     private BANNED_WORDS: string[] = [];
     private readonly DUMMY_NAMES = ["The Bad Mouth", "Silly Goose", "Keyboard Masher", "Default Dave", "Mr. No-Name", "Lord Fluffbottom"];
+
+    private readonly faceMoods: Expression[] = [
+        'poker', 'happy', 'sad', 'angry', 'wink', 
+        'determined', 'battle_cry', 'smirk', 'fearful', 'nervous'
+    ];
+    
+    private readonly faceGlyphs = [
+        '😐', '😊', '😓', '😠', '😉',
+        '🥺', '🤨', '😵', '😮', '😖'
+    ];
 
     // UI Refs
     private nameInput?: Phaser.GameObjects.DOMElement;
@@ -59,7 +70,6 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const settingsPanelW = halfW - 10;
         const settingsPanel = this.createPanel(colRightX + halfW + 5, margin, settingsPanelW, height - margin * 2, "SETTINGS");
 
-        // Tooltip for Dice
         const cursorTooltip = this.add.text(0, 0, "Randomize\nCharacter", {
             fontSize: '12px', backgroundColor: '#000000', color: '#ffffff', padding: { x: 8, y: 4 }, fontFamily: 'Verdana'
         }).setOrigin(0).setDepth(100).setAlpha(0);
@@ -67,7 +77,6 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const randomizeBtn = makeTransparentIconButton(this, settingsPanelW - 55, 45, '🎲', '40px', cursorTooltip, () => { this.randomizeAll(); });
         settingsPanel.add(randomizeBtn);
 
-        // Tooltip for Reset
         const resetTooltip = this.add.text(0, 0, "Reset\nCharacter", {
             fontSize: '12px', backgroundColor: '#000000', color: '#ffffff', padding: { x: 8, y: 4 }, fontFamily: 'Verdana'
         }).setOrigin(0).setDepth(100).setAlpha(0);
@@ -75,7 +84,6 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const resetBtn = makeTransparentIconButton(this, settingsPanelW - 55 - 50, 45, '↻', '40px', resetTooltip, () => { this.resetAll(); });
         settingsPanel.add(resetBtn);
 
-        // Name Input
         const inputW = leftColW - 40;
         const inputH = 30;
         const inputStyle = `width:${inputW}px; height:${inputH}px; background:#0f1422; color:#fff; border:1px solid #22304c; padding:0 8px; font-family:Verdana; outline:none;`;
@@ -94,7 +102,6 @@ export default class CharacterCreateScene extends Phaser.Scene {
             this.updateButtons();
         });
 
-        // Skill Allocation UI
         const pBoxSize = 60;
         const pPanel = this.add.container(leftColW - pBoxSize - 10, 30);
         pPanel.add(this.add.rectangle(0, 0, pBoxSize, pBoxSize, 0x141a2a).setOrigin(0).setStrokeStyle(2, 0x22304c));
@@ -137,20 +144,21 @@ export default class CharacterCreateScene extends Phaser.Scene {
             skillPanel.add([minus, valText, plus]);
         });
 
-        // Settings: Color Picker
         settingsPanel.add(this.add.text(20, 80, 'BODY COLOR PALETTE', {fontSize:'14px', color:'#9aa4b2', fontStyle:'bold'}));
         const pickerSize = settingsPanelW * 0.7;
         new ColorPicker(this, 20, 110, pickerSize, (c) => { this.currentSkinColor = c; this.redrawStickman(); }, settingsPanel);
 
-        // Face Buttons
+        // Expression Buttons: Now a 5x2 grid for 10 emojis
         settingsPanel.add(this.add.text(20, pickerSize + 130, 'FACIAL EXPRESSION', { fontSize: '14px', color: '#9aa4b2', fontStyle: 'bold' }));
-        const faceMoods: Expression[] = ['poker', 'happy', 'sad', 'angry'];
-        const faceGlyphs = ['😐', '😊', '😓', '😠'];
         
-        faceMoods.forEach((mood, i) => {
-            const x = 40 + (i * 55);
-            const y = pickerSize + 175;
-            const btn = makeRoundButton(this, x, y, 22, 0x1c2740, faceGlyphs[i], () => {
+        const cols = 5;
+        this.faceMoods.forEach((mood, i) => {
+            const row = Math.floor(i / cols);
+            const col = i % cols;
+            const x = 32 + (col * 42); 
+            const y = pickerSize + 175 + (row * 50);
+            
+            const btn = makeRoundButton(this, x, y, 20, 0x1c2740, this.faceGlyphs[i], () => {
                 this.currentExpression = mood;
                 this.redrawStickman();
                 this.expressionButtons.forEach(b => b.setAlpha(0.4));
@@ -161,7 +169,6 @@ export default class CharacterCreateScene extends Phaser.Scene {
             settingsPanel.add(btn);
         });
 
-        // Bottom Confirm
         this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '✓', () => {
             const trimmedName = this.nameValue.trim();
             if (trimmedName === "") {
@@ -179,16 +186,13 @@ export default class CharacterCreateScene extends Phaser.Scene {
                     }
                 }
             }
-            console.log("Character Saved!", this.nameValue, this.stats);
         });
 
         makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
 
-        // Stickman Preview
         this.stickmanBody = this.add.graphics();
         this.add.container(colRightX + (halfW - 10) / 2, margin + (previewH) * 0.37, [this.stickmanBody]);
 
-        // Secondary Stats
         const previewPanelLeft = colRightX + 20;
         const previewPanelRight = colRightX + (halfW - 10) / 2 + 10;
         const statsBaseY = margin + (previewH) * 0.65;
@@ -246,7 +250,51 @@ export default class CharacterCreateScene extends Phaser.Scene {
                 g.fillCircle(-12 * s, eyeY+3*s, 3.5 * s); g.fillCircle(12 * s, eyeY+3*s, 3.5 * s);
                 g.fillRect(-10*s, mouthY, 20*s, 4*s);
                 break;
-            default:
+            case 'wink':
+                g.fillCircle(-12 * s, eyeY, 3.5 * s);
+                g.fillRect(8 * s, eyeY - 1.5 * s, 8 * s, 3 * s); 
+                g.lineStyle(3 * s, faceCol, 0.8);
+                g.beginPath().arc(0, mouthY - 5 * s, 10 * s, 0.2, Math.PI - 0.2).strokePath();
+                break;
+            case 'determined': // 🥺
+                g.fillCircle(-12 * s, eyeY-2*s, 6 * s); g.fillCircle(12 * s, eyeY-2*s, 6 * s);
+                g.fillStyle(0xffffff, 0.9);
+                g.fillCircle(-14 * s, eyeY-4*s, 2 * s); g.fillCircle(10 * s, eyeY-4*s, 2 * s);
+                g.fillStyle(faceCol, 0.8);
+                g.lineStyle(2 * s, faceCol, 0.8);
+                g.beginPath().arc(0, mouthY+8*s, 8*s, Math.PI + 0.5, -0.5).strokePath(); 
+                break;
+            case 'battle_cry': // 🤨
+                g.lineStyle(2 * s, faceCol, 0.8);
+                g.beginPath().arc(-12*s, eyeY-8*s, 5*s, Math.PI, 0).strokePath(); 
+                g.fillRect(8*s, eyeY-6*s, 8*s, 2*s); 
+                g.fillCircle(-12 * s, eyeY, 3.5 * s); g.fillCircle(12 * s, eyeY, 3.5 * s);
+                g.fillRect(-6*s, mouthY, 12*s, 2*s);
+                break;
+            case 'smirk': // 😵
+                g.lineStyle(3 * s, faceCol, 0.8);
+                g.beginPath().moveTo(-16*s, eyeY-4*s).lineTo(-8*s, eyeY+4*s).strokePath(); 
+                g.beginPath().moveTo(-8*s, eyeY-4*s).lineTo(-16*s, eyeY+4*s).strokePath(); 
+                g.beginPath().moveTo(16*s, eyeY-4*s).lineTo(8*s, eyeY+4*s).strokePath();   
+                g.beginPath().moveTo(8*s, eyeY-4*s).lineTo(16*s, eyeY+4*s).strokePath();   
+                g.beginPath().arc(0, mouthY, 4*s, 0, Math.PI*2).strokePath();
+                break;
+            case 'fearful': // 😮
+                g.fillCircle(-12 * s, eyeY, 4 * s); g.fillCircle(12 * s, eyeY, 4 * s);
+                g.lineStyle(3 * s, faceCol, 0.8);
+                g.beginPath().arc(0, mouthY+4*s, 8*s, 0, Math.PI*2).strokePath();
+                break;
+            case 'nervous': // 😖
+                g.lineStyle(3 * s, faceCol, 0.9);
+                // Left eye: >
+                g.beginPath().moveTo(-18*s, eyeY-4*s).lineTo(-8*s, eyeY).strokePath();
+                g.beginPath().moveTo(-18*s, eyeY+4*s).lineTo(-8*s, eyeY).strokePath();
+                // Right eye: <
+                g.beginPath().moveTo(18*s, eyeY-4*s).lineTo(8*s, eyeY).strokePath();
+                g.beginPath().moveTo(18*s, eyeY+4*s).lineTo(8*s, eyeY).strokePath();
+                g.beginPath().moveTo(-10*s, mouthY+4*s).lineTo(-5*s, mouthY).lineTo(0*s, mouthY+4*s).lineTo(5*s, mouthY).lineTo(10*s, mouthY+4*s).strokePath();
+                break;
+            default: // Poker
                 g.fillCircle(-12 * s, eyeY, 3.5 * s); g.fillCircle(12 * s, eyeY, 3.5 * s);
                 g.fillRect(-8 * s, mouthY, 16 * s, 3 * s);
         }
@@ -256,10 +304,8 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const randomName = this.generateVikingName();
         this.nameValue = randomName;
         if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = randomName;
-        
         this.currentSkinColor = Math.floor(Math.random() * 0xffffff);
-        this.currentExpression = Phaser.Utils.Array.GetRandom(['poker', 'happy', 'sad', 'angry']);
-        
+        this.currentExpression = Phaser.Utils.Array.GetRandom(this.faceMoods);
         const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
         statKeys.forEach(k => this.stats[k] = 1);
         this.pointsRemaining = this.FREE_POINTS;
@@ -267,8 +313,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
             this.stats[Phaser.Utils.Array.GetRandom(statKeys)]++;
             this.pointsRemaining--;
         }
-        
-        this.expressionButtons.forEach((btn, i) => btn.setAlpha(['poker', 'happy', 'sad', 'angry'][i] === this.currentExpression ? 1 : 0.4));
+        this.expressionButtons.forEach((btn, i) => btn.setAlpha(this.faceMoods[i] === this.currentExpression ? 1 : 0.4));
         this.refreshStatsUI();
         this.redrawStickman();
     }
@@ -276,7 +321,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
     private resetAll() {
         this.nameValue = '';
         if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = '';
-        this.currentSkinColor = 0x3498db; // Restored original blue
+        this.currentSkinColor = 0x3498db; 
         this.currentExpression = 'poker';
         const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
         statKeys.forEach(k => this.stats[k] = 1);
@@ -315,14 +360,12 @@ export default class CharacterCreateScene extends Phaser.Scene {
     private refreshStatsUI() {
         (Object.keys(this.stats) as StatKey[]).forEach(k => { if(this.statTexts[k]) this.statTexts[k]!.setText(String(this.stats[k])); });
         if(this.pointsText) this.pointsText.setText(String(this.pointsRemaining));
-        
         const hp = 10 + (this.stats.vitality * 5);
         const mp = 5 + (this.stats.arcane * 3);
         const speed = 100 + (this.stats.dexterity * 5);
         const block = this.stats.guard * 2;
         const hitChance = this.stats.precision * 2;
         const crit = ((this.stats.precision - 1) * 0.2).toFixed(1);
-
         if (this.secondaryStatTexts.hp) this.secondaryStatTexts.hp.setText(`HP: ${hp}`);
         if (this.secondaryStatTexts.mp) this.secondaryStatTexts.mp.setText(`MP: ${mp}`);
         if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATK: ${this.stats.strength}-${this.stats.strength + 2}`);
@@ -330,7 +373,6 @@ export default class CharacterCreateScene extends Phaser.Scene {
         if (this.secondaryStatTexts.block) this.secondaryStatTexts.block.setText(`BLK: ${block}%`);
         if (this.secondaryStatTexts.hit) this.secondaryStatTexts.hit.setText(`HIT: ${hitChance}%`);
         if (this.secondaryStatTexts.crit) this.secondaryStatTexts.crit.setText(`CRT: ${crit}%`);
-
         this.updateButtons();
     }
 
@@ -341,6 +383,10 @@ export default class CharacterCreateScene extends Phaser.Scene {
         return `${fn} the ${title} ${animal}`.replace(/\b\w/g, l => l.toUpperCase());
     }
 }
+
+// Helpers (makeTransparentIconButton, makeIconButton, makeRoundButton, setButtonEnabled, ColorPicker) remain unchanged.
+
+// Helpers (makeTransparentIconButton, makeIconButton, makeRoundButton, setButtonEnabled, ColorPicker) remain unchanged.
 
 // --- HELPERS ---
 
