@@ -264,6 +264,20 @@ export default class CharacterCreateScene extends Phaser.Scene {
             g.closePath().fillPath();
         };
         drawLimb(-1, true); drawLimb(1, true); drawLimb(-1, false); drawLimb(1, false);
+        // ----- FACES -----
+        // Determine face color based on skin brightness for contrast
+        const colorObj = Phaser.Display.Color.IntegerToColor(this.currentSkinColor);
+        const faceCol = (colorObj.v > 0.5) ? 0x000000 : 0xffffff; 
+        
+        g.fillStyle(faceCol, 0.8);
+        
+        // Left Eye (.)
+        g.fillCircle(-12 * s, -95 * s, 3.5 * s); 
+        // Right Eye (.)
+        g.fillCircle(12 * s, -95 * s, 3.5 * s);  
+        
+        // Flat Mouth (_)
+        g.fillRect(-8 * s, -82 * s, 16 * s, 3 * s);
     }
 
     private createPanel(x: number, y: number, w: number, h: number, title: string) {
