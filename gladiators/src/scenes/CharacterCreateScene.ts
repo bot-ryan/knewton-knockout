@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { faker } from '@faker-js/faker';
 
 type StatKey = 'strength' | 'dexterity' | 'precision' | 'guard' | 'vitality' | 'arcane';
+type Expression = 'poker' | 'happy' | 'sad' | 'angry';
 
 export default class CharacterCreateScene extends Phaser.Scene {
     constructor() { super('CharacterCreate'); }
@@ -15,6 +16,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
     private nameValue = '';
     private currentSkinColor = 0x3498db; 
+    private currentExpression: Expression = 'poker';
 
     private BANNED_WORDS: string[] = [];
     private readonly DUMMY_NAMES = ["The Bad Mouth", "Silly Goose", "Keyboard Masher", "Default Dave", "Mr. No-Name", "Lord Fluffbottom"];
@@ -29,15 +31,13 @@ export default class CharacterCreateScene extends Phaser.Scene {
     private minusButtons: Partial<Record<StatKey, Phaser.GameObjects.Container>> = {};
     private confirmBtn?: Phaser.GameObjects.Container;
     private stickmanBody?: Phaser.GameObjects.Graphics;
-    
-    // NEW: Refs for secondary stats display in the preview panel
     private secondaryStatTexts: Record<string, Phaser.GameObjects.Text> = {};
+    private expressionButtons: Phaser.GameObjects.Container[] = [];
 
     create() {
         const { width, height } = this.scale;
         this.cameras.main.setBackgroundColor(0x0b0f1a);
 
-        // Load banned words
         const bannedWordsText = this.cache.text.get('bannedWords');
         if (bannedWordsText) {
             this.BANNED_WORDS = bannedWordsText.split('\n').map((w: string) => w.trim().toLowerCase()).filter((w: string) => w.length > 0);
@@ -75,7 +75,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const resetBtn = makeTransparentIconButton(this, settingsPanelW - 55 - 50, 45, '↻', '40px', resetTooltip, () => { this.resetAll(); });
         settingsPanel.add(resetBtn);
 
-        // Name Input + Validation
+        // Name Input
         const inputW = leftColW - 40;
         const inputH = 30;
         const inputStyle = `width:${inputW}px; height:${inputH}px; background:#0f1422; color:#fff; border:1px solid #22304c; padding:0 8px; font-family:Verdana; outline:none;`;
@@ -88,7 +88,6 @@ export default class CharacterCreateScene extends Phaser.Scene {
         namePanel.add([this.nameInput, this.nameErrorText]);
 
         this.nameInput.addListener('input').on('input', (e: any) => {
-            // Only allow letters (a-z, A-Z) and spaces
             const filtered = e.target.value.replace(/[^a-zA-Z ]/g, '');
             e.target.value = filtered;
             this.nameValue = filtered;
@@ -125,15 +124,8 @@ export default class CharacterCreateScene extends Phaser.Scene {
         statKeys.forEach((key, i) => {
             const y = 110 + (i * 45); 
             const label = this.add.text(20, y, key.toUpperCase(), { fontSize: '13px', color: '#9aa4b2' }).setInteractive({ useHandCursor: true });
-            
-            label.on('pointerover', () => { 
-                label.setColor('#fff'); 
-                if(this.descText) this.descText.setText(statDescriptions[key]);
-            });
-            label.on('pointerout', () => { 
-                label.setColor('#9aa4b2'); 
-                if(this.descText) this.descText.setText("Hover over a stat to see details.");
-            });
+            label.on('pointerover', () => { label.setColor('#fff'); if(this.descText) this.descText.setText(statDescriptions[key]); });
+            label.on('pointerout', () => { label.setColor('#9aa4b2'); if(this.descText) this.descText.setText("Hover over a stat to see details."); });
 
             skillPanel.add(label);
             const valText = this.add.text(controlX, y + 8, '1', { fontSize: '18px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
@@ -145,71 +137,129 @@ export default class CharacterCreateScene extends Phaser.Scene {
             skillPanel.add([minus, valText, plus]);
         });
 
+        // Settings: Color Picker
         settingsPanel.add(this.add.text(20, 80, 'BODY COLOR PALETTE', {fontSize:'14px', color:'#9aa4b2', fontStyle:'bold'}));
-        new ColorPicker(this, 20, 110, settingsPanelW * 0.7, (c) => { this.currentSkinColor = c; this.redrawStickman(); }, settingsPanel);
+        const pickerSize = settingsPanelW * 0.7;
+        new ColorPicker(this, 20, 110, pickerSize, (c) => { this.currentSkinColor = c; this.redrawStickman(); }, settingsPanel);
 
-        // --- UPDATED CONFIRM LOGIC ---
+        // Face Buttons
+        settingsPanel.add(this.add.text(20, pickerSize + 130, 'FACIAL EXPRESSION', { fontSize: '14px', color: '#9aa4b2', fontStyle: 'bold' }));
+        const faceMoods: Expression[] = ['poker', 'happy', 'sad', 'angry'];
+        const faceGlyphs = ['😐', '😊', '😓', '😠'];
+        
+        faceMoods.forEach((mood, i) => {
+            const x = 40 + (i * 55);
+            const y = pickerSize + 175;
+            const btn = makeRoundButton(this, x, y, 22, 0x1c2740, faceGlyphs[i], () => {
+                this.currentExpression = mood;
+                this.redrawStickman();
+                this.expressionButtons.forEach(b => b.setAlpha(0.4));
+                btn.setAlpha(1);
+            });
+            btn.setAlpha(mood === this.currentExpression ? 1 : 0.4);
+            this.expressionButtons.push(btn);
+            settingsPanel.add(btn);
+        });
+
+        // Bottom Confirm
         this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '✓', () => {
             const trimmedName = this.nameValue.trim();
-            
             if (trimmedName === "") {
                 this.nameValue = "Nameless";
                 if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = "Nameless";
-                if (this.nameErrorText) {
-                    this.nameErrorText.setText("No name? You are now 'Nameless'");
-                    this.time.delayedCall(3000, () => { if(this.nameErrorText) this.nameErrorText.setText(''); });
-                }
-            } 
-            else {
+            } else {
                 const nameStatus = this.validateName(this.nameValue);
                 if (!nameStatus.valid) {
                     const dummyName = Phaser.Utils.Array.GetRandom(this.DUMMY_NAMES);
                     this.nameValue = dummyName;
                     if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = dummyName;
-                    
                     if (this.nameErrorText) {
                         this.nameErrorText.setText("I WARNED YOU!!");
                         this.time.delayedCall(3000, () => { if(this.nameErrorText) this.nameErrorText.setText(''); });
                     }
                 }
             }
-
             console.log("Character Saved!", this.nameValue, this.stats);
-            // Proceed to GameScene
         });
 
         makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
 
+        // Stickman Preview
         this.stickmanBody = this.add.graphics();
         this.add.container(colRightX + (halfW - 10) / 2, margin + (previewH) * 0.37, [this.stickmanBody]);
 
-        // --- NEW: SECONDARY STATS UI IN PREVIEW PANEL ---
+        // Secondary Stats
         const previewPanelLeft = colRightX + 20;
         const previewPanelRight = colRightX + (halfW - 10) / 2 + 10;
-        const statsBaseY = margin + (previewH) * 0.65; // Position below stickman
-        const lineSpacing = 35;
-        const statStyle = { fontSize: '13px', color: '#e2c16b', fontFamily: 'Verdana' }; // Using gold color to match points text
+        const statsBaseY = margin + (previewH) * 0.65;
+        const statStyle = { fontSize: '13px', color: '#e2c16b', fontFamily: 'Verdana' };
 
         this.secondaryStatTexts.hp = this.add.text(previewPanelLeft, statsBaseY, 'HP: 0', statStyle);
-        this.secondaryStatTexts.mp = this.add.text(previewPanelLeft, statsBaseY + lineSpacing, 'MP: 0', statStyle);
-        this.secondaryStatTexts.atk = this.add.text(previewPanelLeft, statsBaseY + lineSpacing * 2, 'ATK: 0', statStyle);
-
+        this.secondaryStatTexts.mp = this.add.text(previewPanelLeft, statsBaseY + 35, 'MP: 0', statStyle);
+        this.secondaryStatTexts.atk = this.add.text(previewPanelLeft, statsBaseY + 70, 'ATK: 0', statStyle);
         this.secondaryStatTexts.speed = this.add.text(previewPanelRight, statsBaseY, 'SPD: 0', statStyle);
-        this.secondaryStatTexts.block = this.add.text(previewPanelRight, statsBaseY + lineSpacing, 'BLK: 0', statStyle);
-        this.secondaryStatTexts.hit = this.add.text(previewPanelRight, statsBaseY + lineSpacing * 2, 'HIT: 0', statStyle);
-        this.secondaryStatTexts.crit = this.add.text(previewPanelRight, statsBaseY + lineSpacing * 3, 'CRT: 0', statStyle);
+        this.secondaryStatTexts.block = this.add.text(previewPanelRight, statsBaseY + 35, 'BLK: 0', statStyle);
+        this.secondaryStatTexts.hit = this.add.text(previewPanelRight, statsBaseY + 70, 'HIT: 0', statStyle);
+        this.secondaryStatTexts.crit = this.add.text(previewPanelRight, statsBaseY + 105, 'CRT: 0', statStyle);
 
-        // Initialize UI with starting values
         this.refreshStatsUI();
         this.redrawStickman();
+    }
+
+    private redrawStickman() {
+        if (!this.stickmanBody) return;
+        const g = this.stickmanBody, s = 1.4; 
+        g.clear().fillStyle(this.currentSkinColor, 1);
+        g.fillCircle(0, -90 * s, 35 * s); 
+        g.beginPath().moveTo(-15*s,-60*s).lineTo(-25*s,-10*s).lineTo(25*s,-10*s).lineTo(15*s,-60*s).closePath().fillPath();
+        
+        const drawLimb = (dir: number, isArm: boolean) => {
+            g.beginPath();
+            if(isArm) g.moveTo(dir*20*s,-55*s).lineTo(dir*45*s,-30*s).lineTo(dir*35*s,-20*s).lineTo(dir*15*s,-45*s);
+            else g.moveTo(dir*5*s,-10*s).lineTo(dir*30*s,60*s).lineTo(dir*15*s,60*s).lineTo(0,-5*s);
+            g.closePath().fillPath();
+        };
+        drawLimb(-1, true); drawLimb(1, true); drawLimb(-1, false); drawLimb(1, false);
+
+        const colorObj = Phaser.Display.Color.IntegerToColor(this.currentSkinColor);
+        const faceCol = (colorObj.v > 0.5) ? 0x000000 : 0xffffff; 
+        g.fillStyle(faceCol, 0.8);
+        const eyeY = -95 * s;
+        const mouthY = -82 * s;
+
+        switch(this.currentExpression) {
+            case 'happy':
+                g.lineStyle(3 * s, faceCol, 0.8);
+                g.beginPath().arc(-14*s, eyeY+2*s, 5*s, Math.PI, 0).strokePath();
+                g.beginPath().arc(14*s, eyeY+2*s, 5*s, Math.PI, 0).strokePath();
+                g.beginPath().arc(0, mouthY-5*s, 10*s, 0.2, Math.PI-0.2).closePath().fillPath();
+                break;
+            case 'sad':
+                g.fillCircle(-12 * s, eyeY, 3.5 * s); g.fillCircle(12 * s, eyeY, 3.5 * s);
+                g.lineStyle(3 * s, faceCol, 0.8);
+                g.beginPath().arc(0, mouthY+10*s, 10*s, Math.PI + 0.5, -0.5).strokePath();
+                break;
+            case 'angry':
+                g.lineStyle(4 * s, faceCol, 0.9);
+                g.beginPath().moveTo(-20*s, eyeY-5*s).lineTo(-8*s, eyeY+2*s).strokePath();
+                g.beginPath().moveTo(20*s, eyeY-5*s).lineTo(8*s, eyeY+2*s).strokePath();
+                g.fillCircle(-12 * s, eyeY+3*s, 3.5 * s); g.fillCircle(12 * s, eyeY+3*s, 3.5 * s);
+                g.fillRect(-10*s, mouthY, 20*s, 4*s);
+                break;
+            default:
+                g.fillCircle(-12 * s, eyeY, 3.5 * s); g.fillCircle(12 * s, eyeY, 3.5 * s);
+                g.fillRect(-8 * s, mouthY, 16 * s, 3 * s);
+        }
     }
 
     private randomizeAll() {
         const randomName = this.generateVikingName();
         this.nameValue = randomName;
         if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = randomName;
+        
         this.currentSkinColor = Math.floor(Math.random() * 0xffffff);
-        this.redrawStickman();
+        this.currentExpression = Phaser.Utils.Array.GetRandom(['poker', 'happy', 'sad', 'angry']);
+        
         const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
         statKeys.forEach(k => this.stats[k] = 1);
         this.pointsRemaining = this.FREE_POINTS;
@@ -217,18 +267,23 @@ export default class CharacterCreateScene extends Phaser.Scene {
             this.stats[Phaser.Utils.Array.GetRandom(statKeys)]++;
             this.pointsRemaining--;
         }
+        
+        this.expressionButtons.forEach((btn, i) => btn.setAlpha(['poker', 'happy', 'sad', 'angry'][i] === this.currentExpression ? 1 : 0.4));
         this.refreshStatsUI();
+        this.redrawStickman();
     }
 
     private resetAll() {
         this.nameValue = '';
         if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = '';
-        this.currentSkinColor = 0xffffff;
-        this.redrawStickman();
+        this.currentSkinColor = 0x3498db; // Restored original blue
+        this.currentExpression = 'poker';
         const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
         statKeys.forEach(k => this.stats[k] = 1);
         this.pointsRemaining = this.FREE_POINTS;
+        this.expressionButtons.forEach((btn, i) => btn.setAlpha(i === 0 ? 1 : 0.4));
         this.refreshStatsUI();
+        this.redrawStickman();
     }
 
     private validateName(name: string): { valid: boolean; error: string } {
@@ -238,46 +293,13 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
     private updateButtons() {
         const nameStatus = this.validateName(this.nameValue);
-        if (this.nameErrorText) {
-            this.nameErrorText.setText(nameStatus.error);
-        }
-
+        if (this.nameErrorText) this.nameErrorText.setText(nameStatus.error);
         const canAdd = this.pointsRemaining > 0;
         (Object.keys(this.stats) as StatKey[]).forEach(k => {
             if(this.plusButtons[k]) setButtonEnabled(this.plusButtons[k]!, canAdd);
             if(this.minusButtons[k]) setButtonEnabled(this.minusButtons[k]!, this.stats[k] > 1);
         });
-
         if(this.confirmBtn) setButtonEnabled(this.confirmBtn, this.pointsRemaining === 0);
-    }
-
-    private redrawStickman() {
-        if (!this.stickmanBody) return;
-        const g = this.stickmanBody, s = 1.4; 
-        g.clear().fillStyle(this.currentSkinColor, 1);
-        g.fillCircle(0, -90 * s, 35 * s); 
-        g.beginPath().moveTo(-15*s,-60*s).lineTo(-25*s,-10*s).lineTo(25*s,-10*s).lineTo(15*s,-60*s).closePath().fillPath();
-        const drawLimb = (dir: number, isArm: boolean) => {
-            g.beginPath();
-            if(isArm) g.moveTo(dir*20*s,-55*s).lineTo(dir*45*s,-30*s).lineTo(dir*35*s,-20*s).lineTo(dir*15*s,-45*s);
-            else g.moveTo(dir*5*s,-10*s).lineTo(dir*30*s,60*s).lineTo(dir*15*s,60*s).lineTo(0,-5*s);
-            g.closePath().fillPath();
-        };
-        drawLimb(-1, true); drawLimb(1, true); drawLimb(-1, false); drawLimb(1, false);
-        // ----- FACES -----
-        // Determine face color based on skin brightness for contrast
-        const colorObj = Phaser.Display.Color.IntegerToColor(this.currentSkinColor);
-        const faceCol = (colorObj.v > 0.5) ? 0x000000 : 0xffffff; 
-        
-        g.fillStyle(faceCol, 0.8);
-        
-        // Left Eye (.)
-        g.fillCircle(-12 * s, -95 * s, 3.5 * s); 
-        // Right Eye (.)
-        g.fillCircle(12 * s, -95 * s, 3.5 * s);  
-        
-        // Flat Mouth (_)
-        g.fillRect(-8 * s, -82 * s, 16 * s, 3 * s);
     }
 
     private createPanel(x: number, y: number, w: number, h: number, title: string) {
@@ -290,17 +312,12 @@ export default class CharacterCreateScene extends Phaser.Scene {
     private incStat(key: StatKey) { if(this.pointsRemaining > 0) { this.stats[key]++; this.pointsRemaining--; this.refreshStatsUI(); } }
     private decStat(key: StatKey) { if(this.stats[key] > 1) { this.stats[key]--; this.pointsRemaining++; this.refreshStatsUI(); } }
     
-    // --- UPDATED REFRESH LOGIC ---
     private refreshStatsUI() {
-        // Update Primary Stats
         (Object.keys(this.stats) as StatKey[]).forEach(k => { if(this.statTexts[k]) this.statTexts[k]!.setText(String(this.stats[k])); });
         if(this.pointsText) this.pointsText.setText(String(this.pointsRemaining));
         
-        // Update Derived (Secondary) Stats using formulas
         const hp = 10 + (this.stats.vitality * 5);
         const mp = 5 + (this.stats.arcane * 3);
-        const minAtk = this.stats.strength;
-        const maxAtk = this.stats.strength + 2;
         const speed = 100 + (this.stats.dexterity * 5);
         const block = this.stats.guard * 2;
         const hitChance = this.stats.precision * 2;
@@ -308,7 +325,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
         if (this.secondaryStatTexts.hp) this.secondaryStatTexts.hp.setText(`HP: ${hp}`);
         if (this.secondaryStatTexts.mp) this.secondaryStatTexts.mp.setText(`MP: ${mp}`);
-        if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATK: ${minAtk}-${maxAtk}`);
+        if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATK: ${this.stats.strength}-${this.stats.strength + 2}`);
         if (this.secondaryStatTexts.speed) this.secondaryStatTexts.speed.setText(`SPD: ${speed}`);
         if (this.secondaryStatTexts.block) this.secondaryStatTexts.block.setText(`BLK: ${block}%`);
         if (this.secondaryStatTexts.hit) this.secondaryStatTexts.hit.setText(`HIT: ${hitChance}%`);
@@ -330,21 +347,9 @@ export default class CharacterCreateScene extends Phaser.Scene {
 function makeTransparentIconButton(scene: Phaser.Scene, x: number, y: number, glyph: string, fontSize: string, tooltip: Phaser.GameObjects.Text, onClick: () => void) {
     const txt = scene.add.text(0, 0, glyph, { fontSize, padding: { top: 10, bottom: 10, left: 5, right: 5 } }).setOrigin(0.5);
     const hitArea = scene.add.zone(0, 0, 50, 50).setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', onClick);
-
-    hitArea.on('pointerover', () => {
-        scene.tweens.add({ targets: tooltip, alpha: 1, duration: 150 });
-        scene.tweens.add({ targets: txt, scale: 1.2, duration: 100 });
-    });
-
-    hitArea.on('pointerout', () => {
-        scene.tweens.add({ targets: tooltip, alpha: 0, duration: 150 });
-        scene.tweens.add({ targets: txt, scale: 1, duration: 100 });
-    });
-
-    hitArea.on('pointermove', (p: Phaser.Input.Pointer) => {
-        tooltip.setPosition(p.x + 15, p.y + 15);
-    });
-
+    hitArea.on('pointerover', () => { scene.tweens.add({ targets: tooltip, alpha: 1, duration: 150 }); scene.tweens.add({ targets: txt, scale: 1.2, duration: 100 }); });
+    hitArea.on('pointerout', () => { scene.tweens.add({ targets: tooltip, alpha: 0, duration: 150 }); scene.tweens.add({ targets: txt, scale: 1, duration: 100 }); });
+    hitArea.on('pointermove', (p: Phaser.Input.Pointer) => { tooltip.setPosition(p.x + 15, p.y + 15); });
     const c = scene.add.container(x, y, [hitArea, txt]).setSize(50, 50);
     (c as any).clickTarget = hitArea;
     return c;
@@ -361,7 +366,7 @@ function makeIconButton(scene: Phaser.Scene, x: number, y: number, glyph: string
 function makeRoundButton(scene: Phaser.Scene, x: number, y: number, r: number, color: number, glyph: string, onClick: () => void) {
     const g = scene.add.graphics().fillStyle(color).fillCircle(0,0,r).lineStyle(2,0xffffff,0.3).strokeCircle(0,0,r)
         .setInteractive(new Phaser.Geom.Circle(0, 0, r), Phaser.Geom.Circle.Contains).on('pointerdown', onClick);
-    const t = scene.add.text(0,0,glyph, {fontSize:'24px'}).setOrigin(0.5);
+    const t = scene.add.text(0,0,glyph, { fontSize: '28px', padding: { top: 10, bottom: 5} }).setOrigin(0.5);
     const c = scene.add.container(x, y, [g, t]).setSize(r*2, r*2);
     (c as any).clickTarget = g;
     return c;
