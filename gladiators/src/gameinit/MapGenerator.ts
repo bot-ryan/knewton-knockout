@@ -21,66 +21,73 @@ export interface MapNode {
 }
 
 export class SpireMapGenerator {
-    private width = 7;
-    private height = 15;
+    // We swap these mentally: height is now the length across (X)
+    // and width is now the spread vertically (Y).
+    private mapLength = 15; // How many columns long the map is (X)
+    private mapHeightSpread = 7; // How many nodes high the columns can be (Y)
     private numPaths = 6;
 
     generate(): MapNode[] {
         const nodes: MapNode[] = [];
-        const grid: (MapNode | null)[][] = Array.from({ length: this.height }, () => Array(this.width).fill(null));
+        // Grid dimension order: [Column/X][Row/Y]
+        const grid: (MapNode | null)[][] = Array.from({ length: this.mapLength }, () => Array(this.mapHeightSpread).fill(null));
 
-        // 1. Create the paths
+        // 1. Create the paths (Left to Right)
         for (let i = 0; i < this.numPaths; i++) {
-            let curX = Math.floor(Math.random() * this.width);
+            // Pick a random vertical starting slot (Y) in the first column (X=0)
+            let curY = Math.floor(Math.random() * this.mapHeightSpread);
             
-            for (let curY = 0; curY < this.height; curY++) {
+            for (let curX = 0; curX < this.mapLength; curX++) {
                 // Ensure a node exists at this spot
-                if (!grid[curY][curX]) {
+                if (!grid[curX][curY]) {
                     const node: MapNode = {
-                        id: `node_${curY}_${curX}`,
-                        x: curX,
-                        y: curY,
-                        type: this.assignType(curY),
+                        id: `node_${curX}_${curY}`,
+                        x: curX, // X is now the progress across
+                        y: curY, // Y is now the vertical spread
+                        type: this.assignType(curX), // Pass curX for type rules
                         nextNodes: []
                     };
-                    grid[curY][curX] = node;
+                    grid[curX][curY] = node;
                     nodes.push(node);
                 }
 
-                // Connect to the next floor (if not at the boss)
-                if (curY < this.height - 1) {
-                    const nextX = this.getNextX(curX);
-                    const currentNode = grid[curY][curX]!;
-                    const nextNodeId = `node_${curY + 1}_${nextX}`;
+                // Connect to the next column (if not at the end)
+                if (curX < this.mapLength - 1) {
+                    const nextY = this.getNextY(curY);
+                    const currentNode = grid[curX][curY]!;
+                    const nextNodeId = `node_${curX + 1}_${nextY}`;
                     
                     if (!currentNode.nextNodes.includes(nextNodeId)) {
                         currentNode.nextNodes.push(nextNodeId);
                     }
-                    curX = nextX; // Move "up" to the next row
+                    curY = nextY; // Move "right" to the next column
                 }
             }
         }
 
-        // 2. Add the Final Boss connection
-        const bossNode: MapNode = { id: 'BOSS', x: 3, y: this.height, type: NodeType.BOSS, nextNodes: [] };
+        // 2. Add the Final Boss connection on the far right
+        const bossNode: MapNode = { id: 'BOSS', x: this.mapLength, y: 3, type: NodeType.BOSS, nextNodes: [] };
         nodes.push(bossNode);
         
-        nodes.filter(n => n.y === this.height - 1).forEach(topNode => {
-            topNode.nextNodes.push(bossNode.id);
+        // Connect nodes in the very last column to the boss
+        nodes.filter(n => n.x === this.mapLength - 1).forEach(lastColumnNode => {
+            lastColumnNode.nextNodes.push(bossNode.id);
         });
 
         return nodes;
     }
 
-    private getNextX(curX: number): number {
-        const choices = [curX - 1, curX, curX + 1].filter(x => x >= 0 && x < this.width);
+    // Swapped name from getNextX to getNextY (same math)
+    private getNextY(curY: number): number {
+        const choices = [curY - 1, curY, curY + 1].filter(y => y >= 0 && y < this.mapHeightSpread);
         return choices[Math.floor(Math.random() * choices.length)];
     }
 
-    private assignType(y: number): NodeTypeValue {
-        if (y === 0) return NodeType.COMBAT;
-        if (y === 7) return NodeType.TREASURE;
-        if (y === 14) return NodeType.REST;
+    // Pass X here, as type rules now depend on map progress (X)
+    private assignType(x: number): NodeTypeValue {
+        if (x === 0) return NodeType.COMBAT;
+        if (x === 7) return NodeType.TREASURE;
+        if (x === 14) return NodeType.REST;
         
         const rand = Math.random();
         if (rand < 0.15) return NodeType.SHOP;
