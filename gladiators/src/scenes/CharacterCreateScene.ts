@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
 import { faker } from '@faker-js/faker';
 
-type StatKey = 'strength' | 'dexterity' | 'precision' | 'guard' | 'vitality' | 'arcane';
-// Cleaned up the Expression type to the final 10
-type Expression = 'poker' | 'happy' | 'sad' | 'angry' | 'wink' | 'determined' | 'battle_cry' | 'smirk' | 'fearful' | 'nervous';
+// NEW: Import the types and the setter function from your new file
+import { type StatKey, type Expression, setPlayerData } from '../data/playerData';
+
+// type StatKey = 'strength' | 'dexterity' | 'precision' | 'guard' | 'vitality' | 'arcane';
+// // Cleaned up the Expression type to the final 10
+// type Expression = 'poker' | 'happy' | 'sad' | 'angry' | 'wink' | 'determined' | 'battle_cry' | 'smirk' | 'fearful' | 'nervous';
 
 export default class CharacterCreateScene extends Phaser.Scene {
     constructor() { super('CharacterCreate'); }
@@ -216,8 +219,10 @@ export default class CharacterCreateScene extends Phaser.Scene {
                 }
             };
 
+            setPlayerData(characterData); // Save to global player data
+
             // Navigate to OpenMap with character data
-            this.scene.start('OpenMap', { character: characterData });
+            this.scene.start('OpenMap');
         });
 
         makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
