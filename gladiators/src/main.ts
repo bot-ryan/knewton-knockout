@@ -6,7 +6,7 @@ import MainMenuScene from './scenes/MainMenuScene';
 import HowToPlayScene from './scenes/HowToPlayScene';
 import CreditsScene from './scenes/CreditsScene';
 import CharacterCreateScene from './scenes/CharacterCreateScene';
-import OpenMap from './scenes/OpenMap';
+import {OpenMap} from './scenes/OpenMap';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
