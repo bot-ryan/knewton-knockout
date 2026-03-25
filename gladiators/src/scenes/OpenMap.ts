@@ -3,38 +3,42 @@ import Phaser from 'phaser';
 import { SpireMapGenerator, type MapNode } from '../gameinit/MapGenerator';
 // Import your Zustand store here
 
+// scenes/OpenMap.ts
+
 export class OpenMap extends Phaser.Scene {
+    private isDragging = false;
+    private dragStartX = 0;
+    private camStartX = 0;
+
     constructor() {
         super('OpenMap');
     }
 
     create() {
-        // 1. Generate (returns updated node structure)
         const generator = new SpireMapGenerator();
         const nodes = generator.generate();
 
-        // 2. Setup rendering constants (Increased PADDING_X as there are more steps)
-        const PADDING_X = 120; // Progress distance (Left -> Right)
-        const PADDING_Y = 80;  // Spread distance (Up -> Down)
+        const PADDING_X = 140; // Spacing it out more for better horizontal feel
+        const PADDING_Y = 90;
         const JITTER = 20;
-        
-        // Start X on the left, center Y vertically
-        const startX = 100; 
+        const startX = 150;
         const startY = (this.scale.height / 2) - (3 * PADDING_Y);
 
-        // 3. Pre-calculate visual coordinates (Swapped visual mapping)
+        // 1. Calculate visual positions
         const visualNodes = nodes.map(node => ({
             ...node,
-            // X position is now (MapProgress * Padding) + Start
             vX: startX + (node.x * PADDING_X) + (Math.random() * JITTER),
-            // Y position is now (SpreadIndex * Padding) + Start
             vY: startY + (node.y * PADDING_Y) + (Math.random() * JITTER)
         }));
 
-        // 4. Draw Lines FIRST (Same code as before, just uses pre-calculated swapped coords)
-        const graphics = this.add.graphics();
-        graphics.lineStyle(2, 0x888888, 0.8);
+        // 2. Determine Map Width for Camera Bounds
+        // We find the furthest node (the Boss) to know where to stop scrolling
+        const maxVX = Math.max(...visualNodes.map(n => n.vX)) + 200; 
+        this.cameras.main.setBounds(0, 0, maxVX, this.scale.height);
 
+        // 3. Draw Lines
+        const graphics = this.add.graphics();
+        graphics.lineStyle(2, 0x444444, 0.8);
         visualNodes.forEach(node => {
             node.nextNodes.forEach(nextId => {
                 const nextNode = visualNodes.find(n => n.id === nextId);
@@ -46,11 +50,46 @@ export class OpenMap extends Phaser.Scene {
         });
         graphics.strokePath();
 
-        // 5. Draw Node Icons SECOND (Same code as before)
-        visualNodes.forEach(node => {
-            this.add.text(node.vX, node.vY, node.type, { fontSize: '32px' })
-                .setOrigin(0.5)
-                .setInteractive({ useHandCursor: true });
+     // 4. Draw Nodes
+visualNodes.forEach(node => {
+    const icon = this.add.text(node.vX, node.vY, node.type, { fontSize: '36px' })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+    
+    // We add 'event' as the second parameter here
+    icon.on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: Phaser.Types.Input.EventData) => {
+        // This is the Phaser way to stop the scene from also reacting to this click
+        event.stopPropagation(); 
+        
+        console.log("Clicked node:", node.type);
+        // Add your logic to enter combat/shop here
+    });
+});
+
+        // 5. CAMERA DRAG LOGIC
+        this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            this.isDragging = true;
+            this.dragStartX = pointer.x;
+            this.camStartX = this.cameras.main.scrollX;
         });
+
+        this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+            if (!this.isDragging) return;
+
+            // Calculate how far the mouse moved
+            const diffX = pointer.x - this.dragStartX;
+            
+            // Move the camera in the opposite direction of the drag
+            // (Drag left to see right)
+            this.cameras.main.scrollX = this.camStartX - diffX;
+        });
+
+        this.input.on('pointerup', () => {
+            this.isDragging = false;
+        });
+
+        // Optional: Add a text instruction that follows the camera
+        this.add.text(20, 20, "Drag to explore the map", { color: '#ffffff', fontSize: '16px' })
+            .setScrollFactor(0); // This makes the text stay fixed on the screen
     }
 }
