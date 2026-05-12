@@ -4,16 +4,14 @@ import { ButtonCreator } from '../components/ButtonCreator';
 import { ColorPicker } from '../components/ColorPicker';
 import { Stickman } from '../components/Stickman';
 
+import { SceneKeys } from '../data/SceneKeys';
+
 // NEW: Import the types and the setter function from your new file
 import { type StatKey, type Expression, setPlayerData } from '../data/playerData';
 
 
-// type StatKey = 'strength' | 'dexterity' | 'precision' | 'guard' | 'vitality' | 'arcane';
-// // Cleaned up the Expression type to the final 10
-// type Expression = 'poker' | 'happy' | 'sad' | 'angry' | 'wink' | 'determined' | 'battle_cry' | 'smirk' | 'fearful' | 'nervous';
-
 export default class CharacterCreateScene extends Phaser.Scene {
-    constructor() { super('CharacterCreate'); }
+    constructor() { super(SceneKeys.CharacterCreate); }
 
     // ---------- STATE ----------
     private readonly FREE_POINTS = 9;
@@ -102,9 +100,10 @@ export default class CharacterCreateScene extends Phaser.Scene {
         this.nameErrorText = this.add.text(leftColW / 2, nameH - 12, '', { fontSize: '10px', color: '#ff4d4d', fontStyle: 'bold' }).setOrigin(0.5);
         namePanel.add([this.nameInput, this.nameErrorText]);
 
-        this.nameInput.addListener('input').on('input', (e: any) => {
-            const filtered = e.target.value.replace(/[^a-zA-Z ]/g, '');
-            e.target.value = filtered;
+        this.nameInput.addListener('input').on('input', (e: Event) => {
+            const target = e.target as HTMLInputElement;
+            const filtered = target.value.replace(/[^a-zA-Z ]/g, '');
+            target.value = filtered;
             this.nameValue = filtered;
             this.updateButtons();
         });
@@ -226,10 +225,10 @@ export default class CharacterCreateScene extends Phaser.Scene {
             setPlayerData(characterData); // Save to global player data
 
             // Navigate to OpenMap with character data
-            this.scene.start('OpenMap');
+            this.scene.start(SceneKeys.OpenMap, { character: characterData });
         });
 
-        ButtonCreator.makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
+        ButtonCreator.makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start(SceneKeys.MainMenu));
 
         this.stickman = new Stickman(
             this, 
