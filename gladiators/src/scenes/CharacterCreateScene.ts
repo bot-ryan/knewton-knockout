@@ -2,9 +2,11 @@ import Phaser from 'phaser';
 import { faker } from '@faker-js/faker';
 import { ButtonCreator } from '../components/ButtonCreator';
 import { ColorPicker } from '../components/ColorPicker';
+import { Stickman } from '../components/Stickman';
 
 // NEW: Import the types and the setter function from your new file
 import { type StatKey, type Expression, setPlayerData } from '../data/playerData';
+
 
 // type StatKey = 'strength' | 'dexterity' | 'precision' | 'guard' | 'vitality' | 'arcane';
 // // Cleaned up the Expression type to the final 10
@@ -46,7 +48,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
     private plusButtons: Partial<Record<StatKey, Phaser.GameObjects.Container>> = {};
     private minusButtons: Partial<Record<StatKey, Phaser.GameObjects.Container>> = {};
     private confirmBtn?: Phaser.GameObjects.Container;
-    private stickmanBody?: Phaser.GameObjects.Graphics;
+    private stickman?: Stickman;
     private secondaryStatTexts: Record<string, Phaser.GameObjects.Text> = {};
     private expressionButtons: Phaser.GameObjects.Container[] = [];
 
@@ -229,8 +231,14 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
         ButtonCreator.makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
 
-        this.stickmanBody = this.add.graphics();
-        this.add.container(colRightX + (halfW - 10) / 2, margin + (previewH) * 0.37, [this.stickmanBody]);
+        this.stickman = new Stickman(
+            this, 
+            colRightX + (halfW - 10) / 2, 
+            margin + (previewH) * 0.37, 
+            this.currentSkinColor, 
+            this.currentExpression
+        );
+       
 
         const previewPanelLeft = colRightX + 20;
         const previewPanelRight = colRightX + (halfW - 10) / 2 + 10;
@@ -250,94 +258,8 @@ export default class CharacterCreateScene extends Phaser.Scene {
     }
 
     private redrawStickman() {
-        if (!this.stickmanBody) return;
-        const g = this.stickmanBody, s = 1.4; 
-        g.clear().fillStyle(this.currentSkinColor, 1);
-        g.fillCircle(0, -90 * s, 35 * s); 
-        g.beginPath().moveTo(-15*s,-60*s).lineTo(-25*s,-10*s).lineTo(25*s,-10*s).lineTo(15*s,-60*s).closePath().fillPath();
-        
-        const drawLimb = (dir: number, isArm: boolean) => {
-            g.beginPath();
-            if(isArm) g.moveTo(dir*20*s,-55*s).lineTo(dir*45*s,-30*s).lineTo(dir*35*s,-20*s).lineTo(dir*15*s,-45*s);
-            else g.moveTo(dir*5*s,-10*s).lineTo(dir*30*s,60*s).lineTo(dir*15*s,60*s).lineTo(0,-5*s);
-            g.closePath().fillPath();
-        };
-        drawLimb(-1, true); drawLimb(1, true); drawLimb(-1, false); drawLimb(1, false);
-
-        const colorObj = Phaser.Display.Color.IntegerToColor(this.currentSkinColor);
-        const faceCol = (colorObj.v > 0.5) ? 0x000000 : 0xffffff; 
-        g.fillStyle(faceCol, 0.8);
-        const eyeY = -95 * s;
-        const mouthY = -82 * s;
-
-        switch(this.currentExpression) {
-            case 'happy':
-                g.lineStyle(3 * s, faceCol, 0.8);
-                g.beginPath().arc(-14*s, eyeY+2*s, 5*s, Math.PI, 0).strokePath();
-                g.beginPath().arc(14*s, eyeY+2*s, 5*s, Math.PI, 0).strokePath();
-                g.beginPath().arc(0, mouthY-5*s, 10*s, 0.2, Math.PI-0.2).closePath().fillPath();
-                break;
-            case 'sad':
-                g.fillCircle(-12 * s, eyeY, 3.5 * s); g.fillCircle(12 * s, eyeY, 3.5 * s);
-                g.lineStyle(3 * s, faceCol, 0.8);
-                g.beginPath().arc(0, mouthY+10*s, 10*s, Math.PI + 0.5, -0.5).strokePath();
-                break;
-            case 'angry':
-                g.lineStyle(4 * s, faceCol, 0.9);
-                g.beginPath().moveTo(-20*s, eyeY-5*s).lineTo(-8*s, eyeY+2*s).strokePath();
-                g.beginPath().moveTo(20*s, eyeY-5*s).lineTo(8*s, eyeY+2*s).strokePath();
-                g.fillCircle(-12 * s, eyeY+3*s, 3.5 * s); g.fillCircle(12 * s, eyeY+3*s, 3.5 * s);
-                g.fillRect(-10*s, mouthY, 20*s, 4*s);
-                break;
-            case 'wink':
-                g.fillCircle(-12 * s, eyeY, 3.5 * s);
-                g.fillRect(8 * s, eyeY - 1.5 * s, 8 * s, 3 * s); 
-                g.lineStyle(3 * s, faceCol, 0.8);
-                g.beginPath().arc(0, mouthY - 5 * s, 10 * s, 0.2, Math.PI - 0.2).strokePath();
-                break;
-            case 'determined': // 🥺
-                g.fillCircle(-12 * s, eyeY-2*s, 6 * s); g.fillCircle(12 * s, eyeY-2*s, 6 * s);
-                g.fillStyle(0xffffff, 0.9);
-                g.fillCircle(-14 * s, eyeY-4*s, 2 * s); g.fillCircle(10 * s, eyeY-4*s, 2 * s);
-                g.fillStyle(faceCol, 0.8);
-                g.lineStyle(2 * s, faceCol, 0.8);
-                g.beginPath().arc(0, mouthY+8*s, 8*s, Math.PI + 0.5, -0.5).strokePath(); 
-                break;
-            case 'battle_cry': // 🤨
-                g.lineStyle(2 * s, faceCol, 0.8);
-                g.beginPath().arc(-12*s, eyeY-8*s, 5*s, Math.PI, 0).strokePath(); 
-                g.fillRect(8*s, eyeY-6*s, 8*s, 2*s); 
-                g.fillCircle(-12 * s, eyeY, 3.5 * s); g.fillCircle(12 * s, eyeY, 3.5 * s);
-                g.fillRect(-6*s, mouthY, 12*s, 2*s);
-                break;
-            case 'smirk': // 😵
-                g.lineStyle(3 * s, faceCol, 0.8);
-                g.beginPath().moveTo(-16*s, eyeY-4*s).lineTo(-8*s, eyeY+4*s).strokePath(); 
-                g.beginPath().moveTo(-8*s, eyeY-4*s).lineTo(-16*s, eyeY+4*s).strokePath(); 
-                g.beginPath().moveTo(16*s, eyeY-4*s).lineTo(8*s, eyeY+4*s).strokePath();   
-                g.beginPath().moveTo(8*s, eyeY-4*s).lineTo(16*s, eyeY+4*s).strokePath();   
-                g.beginPath().arc(0, mouthY, 4*s, 0, Math.PI*2).strokePath();
-                break;
-            case 'fearful': // 😮
-                g.fillCircle(-12 * s, eyeY, 4 * s); g.fillCircle(12 * s, eyeY, 4 * s);
-                g.lineStyle(3 * s, faceCol, 0.8);
-                g.beginPath().arc(0, mouthY+4*s, 8*s, 0, Math.PI*2).strokePath();
-                break;
-            case 'nervous': // 😖
-                g.lineStyle(3 * s, faceCol, 0.9);
-                // Left eye: >
-                g.beginPath().moveTo(-18*s, eyeY-4*s).lineTo(-8*s, eyeY).strokePath();
-                g.beginPath().moveTo(-18*s, eyeY+4*s).lineTo(-8*s, eyeY).strokePath();
-                // Right eye: <
-                g.beginPath().moveTo(18*s, eyeY-4*s).lineTo(8*s, eyeY).strokePath();
-                g.beginPath().moveTo(18*s, eyeY+4*s).lineTo(8*s, eyeY).strokePath();
-                g.beginPath().moveTo(-10*s, mouthY+4*s).lineTo(-5*s, mouthY).lineTo(0*s, mouthY+4*s).lineTo(5*s, mouthY).lineTo(10*s, mouthY+4*s).strokePath();
-                break;
-            default: // Poker
-                g.fillCircle(-12 * s, eyeY, 3.5 * s); g.fillCircle(12 * s, eyeY, 3.5 * s);
-                g.fillRect(-8 * s, mouthY, 16 * s, 3 * s);
-        }
-    }
+    this.stickman?.updateAppearance(this.currentSkinColor, this.currentExpression);
+}
 
     private randomizeAll() {
         const randomName = this.generateVikingName();
