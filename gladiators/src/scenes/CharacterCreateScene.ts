@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { faker } from '@faker-js/faker';
+import { ButtonCreator } from '../components/ButtonCreator';
 
 // NEW: Import the types and the setter function from your new file
 import { type StatKey, type Expression, setPlayerData } from '../data/playerData';
@@ -77,14 +78,14 @@ export default class CharacterCreateScene extends Phaser.Scene {
             fontSize: '12px', backgroundColor: '#000000', color: '#ffffff', padding: { x: 8, y: 4 }, fontFamily: 'Verdana'
         }).setOrigin(0).setDepth(100).setAlpha(0);
 
-        const randomizeBtn = makeTransparentIconButton(this, settingsPanelW - 55, 45, '🎲', '40px', cursorTooltip, () => { this.randomizeAll(); });
+        const randomizeBtn = ButtonCreator.makeTransparentIconButton(this, settingsPanelW - 55, 45, '🎲', '40px', cursorTooltip, () => { this.randomizeAll(); });
         settingsPanel.add(randomizeBtn);
 
         const resetTooltip = this.add.text(0, 0, "Reset\nCharacter", {
             fontSize: '12px', backgroundColor: '#000000', color: '#ffffff', padding: { x: 8, y: 4 }, fontFamily: 'Verdana'
         }).setOrigin(0).setDepth(100).setAlpha(0);
 
-        const resetBtn = makeTransparentIconButton(this, settingsPanelW - 55 - 50, 45, '↻', '40px', resetTooltip, () => { this.resetAll(); });
+        const resetBtn = ButtonCreator.makeTransparentIconButton(this, settingsPanelW - 55 - 50, 45, '↻', '40px', resetTooltip, () => { this.resetAll(); });
         settingsPanel.add(resetBtn);
 
         const inputW = leftColW - 40;
@@ -139,8 +140,8 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
             skillPanel.add(label);
             const valText = this.add.text(controlX, y + 8, '1', { fontSize: '18px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-            const minus = makeIconButton(this, controlX - 49, y - 4, '–', () => this.decStat(key));
-            const plus = makeIconButton(this, controlX + 21, y - 4, '+', () => this.incStat(key));
+            const minus = ButtonCreator.makeIconButton(this, controlX - 49, y - 4, '–', () => this.decStat(key));
+            const plus = ButtonCreator.makeIconButton(this, controlX + 21, y - 4, '+', () => this.incStat(key));
             this.statTexts[key] = valText;
             this.minusButtons[key] = minus; 
             this.plusButtons[key] = plus;
@@ -161,7 +162,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
             const x = 32 + (col * 42); 
             const y = pickerSize + 175 + (row * 50);
             
-            const btn = makeRoundButton(this, x, y, 20, 0x1c2740, this.faceGlyphs[i], () => {
+            const btn = ButtonCreator.makeRoundButton(this, x, y, 20, 0x1c2740, this.faceGlyphs[i], () => {
                 this.currentExpression = mood;
                 this.redrawStickman();
                 this.expressionButtons.forEach(b => b.setAlpha(0.4));
@@ -172,7 +173,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
             settingsPanel.add(btn);
         });
 
-        this.confirmBtn = makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '✓', () => {
+        this.confirmBtn = ButtonCreator.makeRoundButton(this, width - 60, height - 60, 30, 0x12a150, '✓', () => {
             const trimmedName = this.nameValue.trim();
             if (trimmedName === "") {
                 this.nameValue = "Nameless";
@@ -225,7 +226,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
             this.scene.start('OpenMap');
         });
 
-        makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
+        ButtonCreator.makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start('MainMenu'));
 
         this.stickmanBody = this.add.graphics();
         this.add.container(colRightX + (halfW - 10) / 2, margin + (previewH) * 0.37, [this.stickmanBody]);
@@ -378,10 +379,10 @@ export default class CharacterCreateScene extends Phaser.Scene {
         if (this.nameErrorText) this.nameErrorText.setText(nameStatus.error);
         const canAdd = this.pointsRemaining > 0;
         (Object.keys(this.stats) as StatKey[]).forEach(k => {
-            if(this.plusButtons[k]) setButtonEnabled(this.plusButtons[k]!, canAdd);
-            if(this.minusButtons[k]) setButtonEnabled(this.minusButtons[k]!, this.stats[k] > 1);
+            if(this.plusButtons[k]) ButtonCreator.setButtonEnabled(this.plusButtons[k]!, canAdd);
+            if(this.minusButtons[k]) ButtonCreator.setButtonEnabled(this.minusButtons[k]!, this.stats[k] > 1);
         });
-        if(this.confirmBtn) setButtonEnabled(this.confirmBtn, this.pointsRemaining === 0);
+        if(this.confirmBtn) ButtonCreator.setButtonEnabled(this.confirmBtn, this.pointsRemaining === 0);
     }
 
     private createPanel(x: number, y: number, w: number, h: number, title: string) {
@@ -419,46 +420,6 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const animal = faker.animal.type();
         return `${fn} the ${title} ${animal}`.replace(/\b\w/g, l => l.toUpperCase());
     }
-}
-
-// Helpers (makeTransparentIconButton, makeIconButton, makeRoundButton, setButtonEnabled, ColorPicker) remain unchanged.
-
-// Helpers (makeTransparentIconButton, makeIconButton, makeRoundButton, setButtonEnabled, ColorPicker) remain unchanged.
-
-// --- HELPERS ---
-
-function makeTransparentIconButton(scene: Phaser.Scene, x: number, y: number, glyph: string, fontSize: string, tooltip: Phaser.GameObjects.Text, onClick: () => void) {
-    const txt = scene.add.text(0, 0, glyph, { fontSize, padding: { top: 10, bottom: 10, left: 5, right: 5 } }).setOrigin(0.5);
-    const hitArea = scene.add.zone(0, 0, 50, 50).setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', onClick);
-    hitArea.on('pointerover', () => { scene.tweens.add({ targets: tooltip, alpha: 1, duration: 150 }); scene.tweens.add({ targets: txt, scale: 1.2, duration: 100 }); });
-    hitArea.on('pointerout', () => { scene.tweens.add({ targets: tooltip, alpha: 0, duration: 150 }); scene.tweens.add({ targets: txt, scale: 1, duration: 100 }); });
-    hitArea.on('pointermove', (p: Phaser.Input.Pointer) => { tooltip.setPosition(p.x + 15, p.y + 15); });
-    const c = scene.add.container(x, y, [hitArea, txt]).setSize(50, 50);
-    (c as any).clickTarget = hitArea;
-    return c;
-}
-
-function makeIconButton(scene: Phaser.Scene, x: number, y: number, glyph: string, onClick: () => void) {
-    const bg = scene.add.rectangle(0, 0, 28, 28, 0x1c2740).setStrokeStyle(1, 0x2a3a5f).setOrigin(0).setInteractive().on('pointerdown', onClick);
-    const txt = scene.add.text(14, 14, glyph, { fontSize: '16px' }).setOrigin(0.5);
-    const c = scene.add.container(x, y, [bg, txt]).setSize(28, 28);
-    (c as any).clickTarget = bg;
-    return c;
-}
-
-function makeRoundButton(scene: Phaser.Scene, x: number, y: number, r: number, color: number, glyph: string, onClick: () => void) {
-    const g = scene.add.graphics().fillStyle(color).fillCircle(0,0,r).lineStyle(2,0xffffff,0.3).strokeCircle(0,0,r)
-        .setInteractive(new Phaser.Geom.Circle(0, 0, r), Phaser.Geom.Circle.Contains).on('pointerdown', onClick);
-    const t = scene.add.text(0,0,glyph, { fontSize: '28px', padding: { top: 10, bottom: 5} }).setOrigin(0.5);
-    const c = scene.add.container(x, y, [g, t]).setSize(r*2, r*2);
-    (c as any).clickTarget = g;
-    return c;
-}
-
-function setButtonEnabled(c: Phaser.GameObjects.Container, e: boolean) {
-    c.setAlpha(e ? 1 : 0.3); 
-    const target = (c as any).clickTarget || c;
-    if (target.input) target.input.enabled = e;
 }
 
 class ColorPicker {
