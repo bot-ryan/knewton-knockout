@@ -3,6 +3,7 @@ import { faker } from '@faker-js/faker';
 import { ButtonCreator } from '../components/ButtonCreator';
 import { ColorPicker } from '../components/ColorPicker';
 import { Stickman } from '../components/Stickman';
+import { GameConfig } from '../data/GameConfig';
 
 import { SceneKeys } from '../data/SceneKeys';
 
@@ -14,10 +15,15 @@ export default class CharacterCreateScene extends Phaser.Scene {
     constructor() { super(SceneKeys.CharacterCreate); }
 
     // ---------- STATE ----------
-    private readonly FREE_POINTS = 9;
-    private pointsRemaining = this.FREE_POINTS;
+    private readonly FREE_POINTS: number = GameConfig.CHARACTER.STARTING_POINTS;
+    private pointsRemaining: number = this.FREE_POINTS;
     private stats: Record<StatKey, number> = {
-        strength: 1, dexterity: 1, precision: 1, guard: 1, vitality: 1, arcane: 1
+        strength: GameConfig.CHARACTER.MIN_STAT_VALUE,
+        dexterity: GameConfig.CHARACTER.MIN_STAT_VALUE,
+        precision: GameConfig.CHARACTER.MIN_STAT_VALUE,
+        guard: GameConfig.CHARACTER.MIN_STAT_VALUE,
+        vitality: GameConfig.CHARACTER.MIN_STAT_VALUE,
+        arcane: GameConfig.CHARACTER.MIN_STAT_VALUE
     };
 
     private nameValue = '';
@@ -141,7 +147,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
             label.on('pointerout', () => { label.setColor('#9aa4b2'); if(this.descText) this.descText.setText("Hover over a stat to see details."); });
 
             skillPanel.add(label);
-            const valText = this.add.text(controlX, y + 8, '1', { fontSize: '18px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            const valText = this.add.text(controlX, y + 8, GameConfig.CHARACTER.MIN_STAT_VALUE.toString(), { fontSize: '18px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
             const minus = ButtonCreator.makeIconButton(this, controlX - 49, y - 4, '–', () => this.decStat(key));
             const plus = ButtonCreator.makeIconButton(this, controlX + 21, y - 4, '+', () => this.incStat(key));
             this.statTexts[key] = valText;
@@ -194,12 +200,12 @@ export default class CharacterCreateScene extends Phaser.Scene {
             }
 
             // Calculate secondary stats
-            const hp = 10 + (this.stats.vitality * 5);
-            const mp = 5 + (this.stats.arcane * 3);
-            const speed = 100 + (this.stats.dexterity * 5);
-            const block = this.stats.guard * 2;
-            const hitChance = this.stats.precision * 2;
-            const crit = (this.stats.precision - 1) * 0.2;
+            const hp = GameConfig.SCALING.HP_BASE + (this.stats.vitality * GameConfig.SCALING.HP_PER_VITALITY);
+            const mp = GameConfig.SCALING.MP_BASE + (this.stats.arcane * GameConfig.SCALING.MP_PER_ARCANE);
+            const speed = GameConfig.SCALING.SPEED_BASE + (this.stats.dexterity * GameConfig.SCALING.SPEED_PER_DEXTERITY);
+            const block = this.stats.guard * GameConfig.SCALING.BLOCK_PER_GUARD;
+            const hitChance = this.stats.precision * GameConfig.SCALING.HIT_CHANCE_PER_PRECISION;
+            const crit = (this.stats.precision - 1) * GameConfig.SCALING.CRIT_CHANCE_MODIFIER;
 
             // Prepare character data
             const characterData = {
@@ -214,7 +220,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
                 secondaryStats: {
                     hp,
                     mp,
-                    atk: { min: this.stats.strength, max: this.stats.strength + 2 },
+                    atk: { min: this.stats.strength, max: this.stats.strength + GameConfig.SCALING.ATK_RANGE_BONUS },
                     speed,
                     block,
                     hitChance,
@@ -267,8 +273,8 @@ export default class CharacterCreateScene extends Phaser.Scene {
         this.currentSkinColor = Math.floor(Math.random() * 0xffffff);
         this.currentExpression = Phaser.Utils.Array.GetRandom(this.faceMoods);
         const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
-        statKeys.forEach(k => this.stats[k] = 1);
-        this.pointsRemaining = this.FREE_POINTS;
+        statKeys.forEach(k => this.stats[k] = GameConfig.CHARACTER.MIN_STAT_VALUE);
+        this.pointsRemaining = GameConfig.CHARACTER.STARTING_POINTS;
         while (this.pointsRemaining > 0) {
             this.stats[Phaser.Utils.Array.GetRandom(statKeys)]++;
             this.pointsRemaining--;
@@ -281,11 +287,11 @@ export default class CharacterCreateScene extends Phaser.Scene {
     private resetAll() {
         this.nameValue = '';
         if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = '';
-        this.currentSkinColor = 0x3498db; 
+        this.currentSkinColor = GameConfig.CHARACTER.DEFAULT_SKIN_COLOR;
         this.currentExpression = 'poker';
         const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
-        statKeys.forEach(k => this.stats[k] = 1);
-        this.pointsRemaining = this.FREE_POINTS;
+        statKeys.forEach(k => this.stats[k] = GameConfig.CHARACTER.MIN_STAT_VALUE);
+        this.pointsRemaining = GameConfig.CHARACTER.STARTING_POINTS;
         this.expressionButtons.forEach((btn, i) => btn.setAlpha(i === 0 ? 1 : 0.4));
         this.refreshStatsUI();
         this.redrawStickman();
@@ -302,7 +308,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const canAdd = this.pointsRemaining > 0;
         (Object.keys(this.stats) as StatKey[]).forEach(k => {
             if(this.plusButtons[k]) ButtonCreator.setButtonEnabled(this.plusButtons[k]!, canAdd);
-            if(this.minusButtons[k]) ButtonCreator.setButtonEnabled(this.minusButtons[k]!, this.stats[k] > 1);
+            if(this.minusButtons[k]) ButtonCreator.setButtonEnabled(this.minusButtons[k]!, this.stats[k] > GameConfig.CHARACTER.MIN_STAT_VALUE);
         });
         if(this.confirmBtn) ButtonCreator.setButtonEnabled(this.confirmBtn, this.pointsRemaining === 0);
     }
@@ -315,20 +321,20 @@ export default class CharacterCreateScene extends Phaser.Scene {
     }
 
     private incStat(key: StatKey) { if(this.pointsRemaining > 0) { this.stats[key]++; this.pointsRemaining--; this.refreshStatsUI(); } }
-    private decStat(key: StatKey) { if(this.stats[key] > 1) { this.stats[key]--; this.pointsRemaining++; this.refreshStatsUI(); } }
+    private decStat(key: StatKey) { if(this.stats[key] > GameConfig.CHARACTER.MIN_STAT_VALUE) { this.stats[key]--; this.pointsRemaining++; this.refreshStatsUI(); } }
     
     private refreshStatsUI() {
         (Object.keys(this.stats) as StatKey[]).forEach(k => { if(this.statTexts[k]) this.statTexts[k]!.setText(String(this.stats[k])); });
         if(this.pointsText) this.pointsText.setText(String(this.pointsRemaining));
-        const hp = 10 + (this.stats.vitality * 5);
-        const mp = 5 + (this.stats.arcane * 3);
-        const speed = 100 + (this.stats.dexterity * 5);
-        const block = this.stats.guard * 2;
-        const hitChance = this.stats.precision * 2;
-        const crit = ((this.stats.precision - 1) * 0.2).toFixed(1);
+        const hp = GameConfig.SCALING.HP_BASE + (this.stats.vitality * GameConfig.SCALING.HP_PER_VITALITY);
+        const mp = GameConfig.SCALING.MP_BASE + (this.stats.arcane * GameConfig.SCALING.MP_PER_ARCANE);
+        const speed = GameConfig.SCALING.SPEED_BASE + (this.stats.dexterity * GameConfig.SCALING.SPEED_PER_DEXTERITY);
+        const block = this.stats.guard * GameConfig.SCALING.BLOCK_PER_GUARD;
+        const hitChance = this.stats.precision * GameConfig.SCALING.HIT_CHANCE_PER_PRECISION;
+        const crit = ((this.stats.precision - 1) * GameConfig.SCALING.CRIT_CHANCE_MODIFIER).toFixed(1);
         if (this.secondaryStatTexts.hp) this.secondaryStatTexts.hp.setText(`HP: ${hp}`);
         if (this.secondaryStatTexts.mp) this.secondaryStatTexts.mp.setText(`MP: ${mp}`);
-        if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATK: ${this.stats.strength}-${this.stats.strength + 2}`);
+        if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATK: ${this.stats.strength}-${this.stats.strength + GameConfig.SCALING.ATK_RANGE_BONUS}`);
         if (this.secondaryStatTexts.speed) this.secondaryStatTexts.speed.setText(`SPD: ${speed}`);
         if (this.secondaryStatTexts.block) this.secondaryStatTexts.block.setText(`BLK: ${block}%`);
         if (this.secondaryStatTexts.hit) this.secondaryStatTexts.hit.setText(`HIT: ${hitChance}%`);
