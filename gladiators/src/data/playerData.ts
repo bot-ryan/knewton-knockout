@@ -15,6 +15,7 @@ export interface PlayerData {
     secondaryStats: {
         hp: number;
         mp: number;
+        stamina: number;
         atk: { min: number; max: number };
         speed: number;
         block: number;
@@ -36,7 +37,7 @@ export const playerData: PlayerData = {
         strength: 1, dexterity: 1, precision: 1, guard: 1, vitality: 1, arcane: 1
     },
     secondaryStats: {
-        hp: 0, mp: 0, atk: { min: 0, max: 0 }, speed: 0, block: 0, hitChance: 0, crit: 0
+        hp: 0, mp: 0, stamina: 0, atk: { min: 0, max: 0 }, speed: 0, block: 0, hitChance: 0, crit: 0
     }
 };
 

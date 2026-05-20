@@ -1,15 +1,15 @@
+// src/scenes/CharacterCreateScene.ts
+
 import Phaser from 'phaser';
 import { faker } from '@faker-js/faker';
 import { ButtonCreator } from '../components/ButtonCreator';
 import { ColorPicker } from '../components/ColorPicker';
 import { Stickman } from '../components/Stickman';
 import { GameConfig } from '../data/GameConfig';
-
 import { SceneKeys } from '../data/SceneKeys';
 
-// NEW: Import the types and the setter function from your new file
+// Import the types and the setter function from your new file
 import { type StatKey, type Expression, setPlayerData } from '../data/playerData';
-
 
 export default class CharacterCreateScene extends Phaser.Scene {
     constructor() { super(SceneKeys.CharacterCreate); }
@@ -202,6 +202,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
             // Calculate secondary stats
             const hp = GameConfig.SCALING.HP_BASE + (this.stats.vitality * GameConfig.SCALING.HP_PER_VITALITY);
             const mp = GameConfig.SCALING.MP_BASE + (this.stats.arcane * GameConfig.SCALING.MP_PER_ARCANE);
+            const stamina = GameConfig.SCALING.STAMINA_BASE + (this.stats.vitality * GameConfig.SCALING.STAMINA_PER_VITALITY); // 🔥 Added Calculation
             const speed = GameConfig.SCALING.SPEED_BASE + (this.stats.dexterity * GameConfig.SCALING.SPEED_PER_DEXTERITY);
             const block = this.stats.guard * GameConfig.SCALING.BLOCK_PER_GUARD;
             const hitChance = this.stats.precision * GameConfig.SCALING.HIT_CHANCE_PER_PRECISION;
@@ -220,6 +221,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
                 secondaryStats: {
                     hp,
                     mp,
+                    stamina, 
                     atk: { min: this.stats.strength, max: this.stats.strength + GameConfig.SCALING.ATK_RANGE_BONUS },
                     speed,
                     block,
@@ -243,28 +245,30 @@ export default class CharacterCreateScene extends Phaser.Scene {
             this.currentSkinColor, 
             this.currentExpression
         );
-       
-
+        
         const previewPanelLeft = colRightX + 20;
         const previewPanelRight = colRightX + (halfW - 10) / 2 + 10;
         const statsBaseY = margin + (previewH) * 0.65;
         const statStyle = { fontSize: '13px', color: '#e2c16b', fontFamily: 'Verdana' };
 
-        this.secondaryStatTexts.hp = this.add.text(previewPanelLeft, statsBaseY, 'HP: 0', statStyle);
-        this.secondaryStatTexts.mp = this.add.text(previewPanelLeft, statsBaseY + 35, 'MP: 0', statStyle);
-        this.secondaryStatTexts.atk = this.add.text(previewPanelLeft, statsBaseY + 70, 'ATK: 0', statStyle);
-        this.secondaryStatTexts.speed = this.add.text(previewPanelRight, statsBaseY, 'SPD: 0', statStyle);
-        this.secondaryStatTexts.block = this.add.text(previewPanelRight, statsBaseY + 35, 'BLK: 0', statStyle);
-        this.secondaryStatTexts.hit = this.add.text(previewPanelRight, statsBaseY + 70, 'HIT: 0', statStyle);
-        this.secondaryStatTexts.crit = this.add.text(previewPanelRight, statsBaseY + 105, 'CRT: 0', statStyle);
+        this.secondaryStatTexts.hp = this.add.text(previewPanelLeft, statsBaseY, 'HEALTH: 0', statStyle);
+        this.secondaryStatTexts.mp = this.add.text(previewPanelLeft, statsBaseY + 35, 'MANA: 0', statStyle);
+        this.secondaryStatTexts.stamina = this.add.text(previewPanelLeft, statsBaseY + 70, 'STAMINA: 0', statStyle); 
+        this.secondaryStatTexts.atk = this.add.text(previewPanelLeft, statsBaseY + 105, 'ATTACK: 0', statStyle);
+        
+
+        this.secondaryStatTexts.speed = this.add.text(previewPanelRight, statsBaseY, 'SPEED: 0', statStyle);
+        this.secondaryStatTexts.block = this.add.text(previewPanelRight, statsBaseY + 35, 'BLOCK CHANCE: 0', statStyle);
+        this.secondaryStatTexts.hit = this.add.text(previewPanelRight, statsBaseY + 70, 'HIT CHANCE: 0', statStyle);
+        this.secondaryStatTexts.crit = this.add.text(previewPanelRight, statsBaseY + 105, 'CRIT CHANCE: 0', statStyle);
 
         this.refreshStatsUI();
         this.redrawStickman();
     }
 
     private redrawStickman() {
-    this.stickman?.updateAppearance(this.currentSkinColor, this.currentExpression);
-}
+        this.stickman?.updateAppearance(this.currentSkinColor, this.currentExpression);
+    }
 
     private randomizeAll() {
         const randomName = this.generateVikingName();
@@ -328,17 +332,22 @@ export default class CharacterCreateScene extends Phaser.Scene {
         if(this.pointsText) this.pointsText.setText(String(this.pointsRemaining));
         const hp = GameConfig.SCALING.HP_BASE + (this.stats.vitality * GameConfig.SCALING.HP_PER_VITALITY);
         const mp = GameConfig.SCALING.MP_BASE + (this.stats.arcane * GameConfig.SCALING.MP_PER_ARCANE);
+        const stamina = GameConfig.SCALING.STAMINA_BASE + (this.stats.vitality * GameConfig.SCALING.STAMINA_PER_VITALITY); 
         const speed = GameConfig.SCALING.SPEED_BASE + (this.stats.dexterity * GameConfig.SCALING.SPEED_PER_DEXTERITY);
         const block = this.stats.guard * GameConfig.SCALING.BLOCK_PER_GUARD;
         const hitChance = this.stats.precision * GameConfig.SCALING.HIT_CHANCE_PER_PRECISION;
         const crit = ((this.stats.precision - 1) * GameConfig.SCALING.CRIT_CHANCE_MODIFIER).toFixed(1);
-        if (this.secondaryStatTexts.hp) this.secondaryStatTexts.hp.setText(`HP: ${hp}`);
-        if (this.secondaryStatTexts.mp) this.secondaryStatTexts.mp.setText(`MP: ${mp}`);
-        if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATK: ${this.stats.strength}-${this.stats.strength + GameConfig.SCALING.ATK_RANGE_BONUS}`);
-        if (this.secondaryStatTexts.speed) this.secondaryStatTexts.speed.setText(`SPD: ${speed}`);
-        if (this.secondaryStatTexts.block) this.secondaryStatTexts.block.setText(`BLK: ${block}%`);
-        if (this.secondaryStatTexts.hit) this.secondaryStatTexts.hit.setText(`HIT: ${hitChance}%`);
-        if (this.secondaryStatTexts.crit) this.secondaryStatTexts.crit.setText(`CRT: ${crit}%`);
+        
+        if (this.secondaryStatTexts.hp) this.secondaryStatTexts.hp.setText(`HEALTH: ${hp}`);
+        if (this.secondaryStatTexts.mp) this.secondaryStatTexts.mp.setText(`MANA: ${mp}`);
+        if (this.secondaryStatTexts.stamina) this.secondaryStatTexts.stamina.setText(`STAMINA: ${stamina}`); 
+        if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATTACK: ${this.stats.strength}-${this.stats.strength + GameConfig.SCALING.ATK_RANGE_BONUS}`);
+       
+        
+        if (this.secondaryStatTexts.speed) this.secondaryStatTexts.speed.setText(`SPEED: ${speed}`);
+        if (this.secondaryStatTexts.block) this.secondaryStatTexts.block.setText(`BLOCK CHANCE: ${block}%`);
+        if (this.secondaryStatTexts.hit) this.secondaryStatTexts.hit.setText(`HIT CHANCE: ${hitChance}%`);
+        if (this.secondaryStatTexts.crit) this.secondaryStatTexts.crit.setText(`CRIT CHANCE: ${crit}%`);
         this.updateButtons();
     }
 
