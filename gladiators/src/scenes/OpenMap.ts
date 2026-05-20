@@ -1,24 +1,43 @@
 // scenes/OpenMap.ts
 import Phaser from 'phaser';
 import { SpireMapGenerator, type MapNode } from '../gameinit/MapGenerator';
-// Import your Zustand store here
+import { SceneKeys } from '../data/SceneKeys';
 
-// scenes/OpenMap.ts
+// Import your global playerData to use as a fallback or verification
+import { playerData, type PlayerData } from '../data/playerData';
 
 export class OpenMap extends Phaser.Scene {
     private isDragging = false;
     private dragStartX = 0;
     private camStartX = 0;
+    private activePlayer?: PlayerData; 
 
     constructor() {
-        super('OpenMap');
+        super(SceneKeys.OpenMap); // Clean up hardcoded string to use your SceneKeys enum
+    }
+
+    // 🔥 Added: Phaser's data receiver method
+    init(data: { character?: PlayerData }) {
+        if (data && data.character) {
+            this.activePlayer = data.character;
+        } else {
+            // Fallback: If the scene is launched directly during testing without a payload,
+            // fall back to whatever is currently sitting in the global playerData module.
+            this.activePlayer = playerData;
+        }
+
+        // Verification check in your debug console
+        console.log("--- Player Data Successfully Received ---");
+        console.log(`Gladiator: ${this.activePlayer.name}`);
+        console.log(`Stamina Pool: ${this.activePlayer.secondaryStats.stamina}`); // Verifying the new stat!
+        console.log(`Health Pool: ${this.activePlayer.secondaryStats.hp}`);
     }
 
     create() {
         const generator = new SpireMapGenerator();
         const nodes = generator.generate();
 
-        const PADDING_X = 140; // Spacing it out more for better horizontal feel
+        const PADDING_X = 140; 
         const PADDING_Y = 90;
         const JITTER = 20;
         const startX = 150;
@@ -50,21 +69,20 @@ export class OpenMap extends Phaser.Scene {
         });
         graphics.strokePath();
 
-     // 4. Draw Nodes
-visualNodes.forEach(node => {
-    const icon = this.add.text(node.vX, node.vY, node.type, { fontSize: '36px' })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-    
-    // We add 'event' as the second parameter here
-    icon.on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: Phaser.Types.Input.EventData) => {
-        // This is the Phaser way to stop the scene from also reacting to this click
-        event.stopPropagation(); 
-        
-        console.log("Clicked node:", node.type);
-        // Add your logic to enter combat/shop here
-    });
-});
+        // 4. Draw Nodes
+        visualNodes.forEach(node => {
+            const icon = this.add.text(node.vX, node.vY, node.type, { fontSize: '36px' })
+                .setOrigin(0.5)
+                .setInteractive({ useHandCursor: true });
+            
+            icon.on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: Phaser.Types.Input.EventData) => {
+                event.stopPropagation(); 
+                console.log("Clicked node:", node.type);
+                
+                // When we start the Encounter Card or Combat system later, 
+                // you can pass `this.activePlayer` right along with it!
+            });
+        });
 
         // 5. CAMERA DRAG LOGIC
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -75,12 +93,7 @@ visualNodes.forEach(node => {
 
         this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
             if (!this.isDragging) return;
-
-            // Calculate how far the mouse moved
             const diffX = pointer.x - this.dragStartX;
-            
-            // Move the camera in the opposite direction of the drag
-            // (Drag left to see right)
             this.cameras.main.scrollX = this.camStartX - diffX;
         });
 
@@ -88,8 +101,13 @@ visualNodes.forEach(node => {
             this.isDragging = false;
         });
 
-        // Optional: Add a text instruction that follows the camera
-        this.add.text(20, 20, "Drag to explore the map", { color: '#ffffff', fontSize: '16px' })
-            .setScrollFactor(0); // This makes the text stay fixed on the screen
+        // UI Header: Dynamic text displaying the active gladiator's name and stats
+        this.add.text(20, 20, `Gladiator: ${this.activePlayer?.name} | STM: ${this.activePlayer?.secondaryStats.stamina}`, { 
+            color: '#ffffff', 
+            fontSize: '16px',
+            fontFamily: 'Verdana',
+            backgroundColor: '#141a2a',
+            padding: { x: 10, y: 5 }
+        }).setScrollFactor(0).setStroke('#22304c', 2);
     }
 }
