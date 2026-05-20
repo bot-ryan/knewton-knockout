@@ -200,9 +200,9 @@ export default class CharacterCreateScene extends Phaser.Scene {
             }
 
             // Calculate secondary stats
-            const hp = GameConfig.SCALING.HP_BASE + (this.stats.vitality * GameConfig.SCALING.HP_PER_VITALITY);
-            const mp = GameConfig.SCALING.MP_BASE + (this.stats.arcane * GameConfig.SCALING.MP_PER_ARCANE);
-            const stamina = GameConfig.SCALING.STAMINA_BASE + (this.stats.vitality * GameConfig.SCALING.STAMINA_PER_VITALITY); // 🔥 Added Calculation
+            const maxHp = GameConfig.SCALING.HP_BASE + (this.stats.vitality * GameConfig.SCALING.HP_PER_VITALITY);
+            const maxMp = GameConfig.SCALING.MP_BASE + (this.stats.arcane * GameConfig.SCALING.MP_PER_ARCANE);
+            const maxStamina = GameConfig.SCALING.STAMINA_BASE + (this.stats.vitality * GameConfig.SCALING.STAMINA_PER_VITALITY);
             const speed = GameConfig.SCALING.SPEED_BASE + (this.stats.dexterity * GameConfig.SCALING.SPEED_PER_DEXTERITY);
             const block = this.stats.guard * GameConfig.SCALING.BLOCK_PER_GUARD;
             const hitChance = this.stats.precision * GameConfig.SCALING.HIT_CHANCE_PER_PRECISION;
@@ -219,14 +219,11 @@ export default class CharacterCreateScene extends Phaser.Scene {
                 },
                 stats: { ...this.stats },
                 secondaryStats: {
-                    hp,
-                    mp,
-                    stamina, 
+                    hp: { current: maxHp, max: maxHp },
+                    mp: { current: maxMp, max: maxMp },
+                    stamina: { current: maxStamina, max: maxStamina },
                     atk: { min: this.stats.strength, max: this.stats.strength + GameConfig.SCALING.ATK_RANGE_BONUS },
-                    speed,
-                    block,
-                    hitChance,
-                    crit
+                    speed, block, hitChance, crit
                 }
             };
 

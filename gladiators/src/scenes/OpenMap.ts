@@ -102,7 +102,7 @@ export class OpenMap extends Phaser.Scene {
         });
 
         // UI Header: Dynamic text displaying the active gladiator's name and stats
-        this.add.text(20, 20, `Gladiator: ${this.activePlayer?.name} | STM: ${this.activePlayer?.secondaryStats.stamina}`, { 
+        this.add.text(20, 20, `${this.activePlayer?.name} | HEALTH: ${this.activePlayer?.secondaryStats.hp.current}/${this.activePlayer?.secondaryStats.hp.max}`, { 
             color: '#ffffff', 
             fontSize: '16px',
             fontFamily: 'Verdana',

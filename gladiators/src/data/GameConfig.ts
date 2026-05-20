@@ -9,16 +9,16 @@ export const GameConfig = {
 
     // Stat Scaling (The "Math" behind the game)
     SCALING: {
-        HP_BASE: 10,
+        HP_BASE: 15,
         HP_PER_VITALITY: 5,
         
         MP_BASE: 5,
         MP_PER_ARCANE: 3,
 
-        STAMINA_BASE: 50,
+        STAMINA_BASE: 40,
         STAMINA_PER_VITALITY: 10,
         
-        SPEED_BASE: 100,
+        SPEED_BASE: 95,
         SPEED_PER_DEXTERITY: 5,
         
         BLOCK_PER_GUARD: 2,       // Percentage %
