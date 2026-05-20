@@ -2,6 +2,9 @@
 import Phaser from "phaser";
 import { Fonts } from "../gameinit/Fonts";
 
+// 🔥 FIX 1: Import the audio file directly so Vite processes it correctly
+import michaelBossSongUrl from "../assets/audio/MichaelBossSong.ogg";
+
 type MenuEntry = {
   label: string;
   action: () => void;
@@ -12,16 +15,15 @@ export default class MainMenuScene extends Phaser.Scene {
   private hintText!: Phaser.GameObjects.Text;
   private menuEntries: MenuEntry[] = [];
   private menuTexts: Phaser.GameObjects.Text[] = [];
-  private selectedIndex = -1; // Changed to -1 so the initial setSelectedIndex(0) registers as a change
+  private selectedIndex = -1;
 
   constructor() {
     super("MainMenu");
   }
 
   preload() {
-    // (Optional) Load UI images, audio, or custom fonts here.
-    // this.load.audio('ui-move', 'assets/audio/ui-move.ogg');
-    // this.load.audio('ui-select', 'assets/audio/ui-select.ogg');
+    // 🔥 FIX 2: Pass the resolved Vite URL variable instead of a string path
+    this.load.audio('test', michaelBossSongUrl);
   }
 
   async create() {
@@ -32,6 +34,16 @@ export default class MainMenuScene extends Phaser.Scene {
     // Background
     this.cameras.main.setBackgroundColor(0x101322);
     this.cameras.main.fadeIn(200, 0, 0, 0);
+
+    // 🔥 FIX 3: Defensive audio playback check.
+    // We check if the audio actually exists in Phaser's cache before playing it.
+    // This ensures that even if an audio asset fails to load, your UI elements will STILL render!
+    if (this.cache.audio.exists('test') && !this.sound.get('test')) {
+      this.sound.play('test', {
+        loop: true,
+        volume: 0.4
+      });
+    }
 
     // Title
     this.titleText = this.add
@@ -111,14 +123,11 @@ export default class MainMenuScene extends Phaser.Scene {
 
   private moveSelection(delta: number) {
     const max = this.menuEntries.length;
-    // Calculate the new index, using Math.abs/wrap logic to handle negative numbers safely
     const newIndex = (this.selectedIndex + delta + max) % max;
     this.setSelectedIndex(newIndex);
-    // this.sound.play('ui-move', { volume: 0.6 });
   }
 
   private setSelectedIndex(i: number) {
-    // THE FIX: Prevent the infinite loop if the index hasn't actually changed
     if (this.selectedIndex === i) return; 
     
     this.selectedIndex = i;
@@ -133,7 +142,6 @@ export default class MainMenuScene extends Phaser.Scene {
       t.setScale(sel ? 1.06 : 1.0);
     });
 
-    // Subtle title pulse on change
     this.tweens.add({
       targets: this.titleText,
       scaleX: 1.02,
@@ -145,9 +153,6 @@ export default class MainMenuScene extends Phaser.Scene {
   }
 
   private activateSelected() {
-    const selected = this.menuEntries[this.selectedIndex];
-
-    // Click feedback + then action
     this.tweens.add({
       targets: this.menuTexts[this.selectedIndex],
       scaleX: 1.12,
@@ -156,14 +161,12 @@ export default class MainMenuScene extends Phaser.Scene {
       yoyo: true,
       ease: "quad.out",
       onComplete: () => {
-        // this.sound.play('ui-select', { volume: 0.7 });
-        selected.action();
+        this.menuEntries[this.selectedIndex].action();
       },
     });
   }
 
   private transitionTo(sceneKey: string) {
-    // Simple fade-out then start next scene
     this.cameras.main.fadeOut(150, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.scene.start(sceneKey);
