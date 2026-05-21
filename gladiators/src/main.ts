@@ -7,6 +7,7 @@ import HowToPlayScene from './scenes/HowToPlayScene';
 import CreditsScene from './scenes/CreditsScene';
 import CharacterCreateScene from './scenes/CharacterCreateScene';
 import {OpenMap} from './scenes/OpenMap';
+import CombatScene from './scenes/CombatScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -22,6 +23,7 @@ const config: Phaser.Types.Core.GameConfig = {
     CreditsScene,
     CharacterCreateScene,
     OpenMap,
+    CombatScene
   ],
   dom: { createContainer: true }, // required for HTML <input> in CharacterCreate
   scale: {

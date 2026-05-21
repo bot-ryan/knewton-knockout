@@ -1,10 +1,17 @@
-// scenes/OpenMap.ts
+// src/scenes/OpenMap.ts
 import Phaser from 'phaser';
 import { SpireMapGenerator, type MapNode } from '../gameinit/MapGenerator';
 import { SceneKeys } from '../data/SceneKeys';
-
-// Import your global playerData to use as a fallback or verification
 import { playerData, type PlayerData } from '../data/playerData';
+
+// 🔥 FIX 1: Import your structured enemy pools and templates
+import { 
+    BEGINNER_ENEMY_POOL, 
+    STANDARD_ENEMY_POOL, 
+    ELITE_ENEMY_POOL, 
+    BOSS_ENEMY_POOL, 
+    type EnemyTemplate 
+} from '../data/Enemy/EnemyArchetypes';
 
 export class OpenMap extends Phaser.Scene {
     private isDragging = false;
@@ -13,24 +20,20 @@ export class OpenMap extends Phaser.Scene {
     private activePlayer?: PlayerData; 
 
     constructor() {
-        super(SceneKeys.OpenMap); // Clean up hardcoded string to use your SceneKeys enum
+        super(SceneKeys.OpenMap);
     }
 
-    // 🔥 Added: Phaser's data receiver method
     init(data: { character?: PlayerData }) {
         if (data && data.character) {
             this.activePlayer = data.character;
         } else {
-            // Fallback: If the scene is launched directly during testing without a payload,
-            // fall back to whatever is currently sitting in the global playerData module.
             this.activePlayer = playerData;
         }
 
-        // Verification check in your debug console
         console.log("--- Player Data Successfully Received ---");
         console.log(`Gladiator: ${this.activePlayer.name}`);
-        console.log(`Stamina Pool: ${this.activePlayer.secondaryStats.stamina}`); // Verifying the new stat!
-        console.log(`Health Pool: ${this.activePlayer.secondaryStats.hp}`);
+        console.log(`Stamina Pool: ${this.activePlayer.secondaryStats.stamina.current}/${this.activePlayer.secondaryStats.stamina.max}`);
+        console.log(`Health Pool: ${this.activePlayer.secondaryStats.hp.current}/${this.activePlayer.secondaryStats.hp.max}`);
     }
 
     create() {
@@ -51,7 +54,6 @@ export class OpenMap extends Phaser.Scene {
         }));
 
         // 2. Determine Map Width for Camera Bounds
-        // We find the furthest node (the Boss) to know where to stop scrolling
         const maxVX = Math.max(...visualNodes.map(n => n.vX)) + 200; 
         this.cameras.main.setBounds(0, 0, maxVX, this.scale.height);
 
@@ -77,10 +79,9 @@ export class OpenMap extends Phaser.Scene {
             
             icon.on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: Phaser.Types.Input.EventData) => {
                 event.stopPropagation(); 
-                console.log("Clicked node:", node.type);
                 
-                // When we start the Encounter Card or Combat system later, 
-                // you can pass `this.activePlayer` right along with it!
+                // 🔥 FIX 2: Trigger our dynamic encounter router!
+                this.handleNodeEncounter(node);
             });
         });
 
@@ -101,7 +102,7 @@ export class OpenMap extends Phaser.Scene {
             this.isDragging = false;
         });
 
-        // UI Header: Dynamic text displaying the active gladiator's name and stats
+        // UI Header
         this.add.text(20, 20, `${this.activePlayer?.name} | HEALTH: ${this.activePlayer?.secondaryStats.hp.current}/${this.activePlayer?.secondaryStats.hp.max}`, { 
             color: '#ffffff', 
             fontSize: '16px',
@@ -109,5 +110,46 @@ export class OpenMap extends Phaser.Scene {
             backgroundColor: '#141a2a',
             padding: { x: 10, y: 5 }
         }).setScrollFactor(0).setStroke('#22304c', 2);
+    }
+
+    /**
+     * 🔥 FIX 3: Dynamic Node Router
+     * Determines what type of encounter pool to roll, selects the random enemy,
+     * and packages the payload into the CombatScene launch sequence.
+     */
+    private handleNodeEncounter(node: any) {
+        let selectedPool: EnemyTemplate[] = [];
+
+        // Normalize your node type identifiers (Supports emojis or explicit text strings)
+        const nodeType = node.type.toUpperCase();
+
+        if (nodeType.includes('⚔️') || nodeType.includes('COMBAT') || nodeType.includes('BEGINNER')) {
+            selectedPool = BEGINNER_ENEMY_POOL;
+        } else if (nodeType.includes('STANDARD')) {
+            selectedPool = STANDARD_ENEMY_POOL;
+        } else if (nodeType.includes('💀') || nodeType.includes('ELITE')) {
+            selectedPool = ELITE_ENEMY_POOL;
+        } else if (nodeType.includes('👑') || nodeType.includes('BOSS')) {
+            selectedPool = BOSS_ENEMY_POOL;
+        } else {
+            // Safe fallback just in case it's an unrecognized node type (like mystery events)
+            console.warn(`Unmapped node type: ${node.type}. Defaulting to Beginner.`);
+            selectedPool = BEGINNER_ENEMY_POOL;
+        }
+
+        // Pull a random gladiator out of our chosen bracket pool
+        const chosenEnemy = Phaser.Utils.Array.GetRandom(selectedPool);
+        console.log(`Encounter Generated! Battle: ${chosenEnemy.displayName}`);
+
+        // Lock camera and flash-fade out into battle arena
+        this.cameras.main.fadeOut(250, 0, 0, 0);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+            // Note: If you added a Combat registry value inside SceneKeys enum,
+            // replace 'CombatScene' below with SceneKeys.Combat!
+            this.scene.start('CombatScene', {
+                character: this.activePlayer,
+                enemyTemplate: chosenEnemy
+            });
+        });
     }
 }
