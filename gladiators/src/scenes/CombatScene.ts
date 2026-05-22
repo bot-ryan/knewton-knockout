@@ -73,31 +73,31 @@ export default class CombatScene extends Phaser.Scene {
 
         this.uiContainer = this.add.container(0, 0);
 
-       // --- 1. WORLD SETUP ---
-this.cameras.main.fadeIn(300, 0, 0, 0);
+        // --- 1. WORLD SETUP ---
+        this.cameras.main.fadeIn(300, 0, 0, 0);
 
-// 1. Grab the native dimensions of your background image
-const bgTexture = this.textures.get('forest_bg');
-const nativeHeight = bgTexture.getSourceImage().height;
+        // 1. Grab the native dimensions of your background image
+        const bgTexture = this.textures.get('forest_bg');
+        const nativeHeight = bgTexture.getSourceImage().height;
 
-// 2. Set your desired scale factor (e.g., 1.2 or 1.5 if you want to upscale the pixel art)
-const bgScale = 1.35; 
-const displayHeight = nativeHeight * bgScale;
+        // 2. Set your desired scale factor (e.g., 1.2 or 1.5 if you want to upscale the pixel art)
+        const bgScale = 1.35; 
+        const displayHeight = nativeHeight * bgScale;
 
-// 3. Create the TileSprite with the EXACT display height so it cannot tile vertically
-const bg = this.add.tileSprite(
-    this.worldCenterX, 
-    height * 0.43, // 🌟 Tweak this Y anchor to perfectly align the forest floor with your characters
-    4000, 
-    displayHeight, 
-    'forest_bg'
-);
+        // 3. Create the TileSprite with the EXACT display height so it cannot tile vertically
+        const bg = this.add.tileSprite(
+            this.worldCenterX, 
+            height * 0.43, // 🌟 Tweak this Y anchor to perfectly align the forest floor with your characters
+            4000, 
+            displayHeight, 
+            'forest_bg'
+        );
 
-// 4. Apply the scale internally to the tile texture texture
-bg.setTileScale(bgScale, bgScale);
+        // 4. Apply the scale internally to the tile texture texture
+        bg.setTileScale(bgScale, bgScale);
 
-bg.setDepth(-10); // Ensure it is behind everything
-bg.setScrollFactor(0.5); // Parallax effect: moves slower than camera
+        bg.setDepth(-10); // Ensure it is behind everything
+        bg.setScrollFactor(0.5); // Parallax effect: moves slower than camera
 
         const initialPlayerX = this.worldCenterX + (this.playerGridX * this.GRID_SIZE);
         const initialEnemyX = this.worldCenterX + (this.enemyGridX * this.GRID_SIZE);
@@ -195,6 +195,8 @@ bg.setScrollFactor(0.5); // Parallax effect: moves slower than camera
     }
 
     private processEnemyTurn() {
+        if (this.currentEnemyHp <= 0) return;
+
         this.combatLogText.setText(`${this.enemyIdentity.name} is making a move...`);
 
         this.time.delayedCall(800, () => {
@@ -230,55 +232,107 @@ bg.setScrollFactor(0.5); // Parallax effect: moves slower than camera
         this.combatLogText.setText(`It is your turn.`);
     }
 
-    private executeAction(type: 'STRIKE' | 'RETREAT') {
+    private executeAction(type: 'QUICK' | 'NORMAL' | 'POWER' | 'CHARGE' | 'REST' | 'TAUNT') {
         if (!this.isPlayerTurn) return; 
-        
-        if (type === 'RETREAT') {
-            this.combatLogText.setText("Fleeing match arena...");
-            this.cameras.main.fadeOut(200, 0, 0, 0);
-            this.uiCamera.fadeOut(200, 0, 0, 0);
-            this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-                this.scene.start('OpenMap');
-            });
-            return;
-        }
 
-        if (type === 'STRIKE') {
-            const distanceBetween = Math.abs(this.enemyGridX - this.playerGridX);
-            
-            if (distanceBetween > 1) {
-                this.combatLogText.setText(`Enemy is too far away to strike! Move closer.`);
-                return; 
-            }
+        const distanceBetween = Math.abs(this.enemyGridX - this.playerGridX);
+        let damage = 0;
 
-            this.isPlayerTurn = false; 
-
-            const damage = Math.floor(Math.random() * 5) + 3;
-            this.currentEnemyHp = Math.max(0, this.currentEnemyHp - damage);
-            
-            const newHpPercent = this.enemyTemplate.baseHp > 0 ? this.currentEnemyHp / this.enemyTemplate.baseHp : 0;
-            this.drawStatBar(this.enemyHpBar, this.enemyUIX, this.enemyUIY + 35, this.barWidth, this.barHeight, newHpPercent, 0xef4444);
-            this.enemyHpText.setText(`${this.currentEnemyHp}/${this.enemyTemplate.baseHp}`);
-            
-            this.combatLogText.setText(`You strike dealing ${damage} damage!`);
-
-            this.tweens.add({ 
-                targets: this.enemyGraphic, 
-                alpha: 0.3, yoyo: true, duration: 60, repeat: 1,
-                onComplete: () => {
-                    if (this.currentEnemyHp <= 0) {
-                        this.combatLogText.setText(`Victory! Leaving arena...`);
-                        this.time.delayedCall(1500, () => {
-                            this.cameras.main.fadeOut(250, 0, 0, 0);
-                            this.uiCamera.fadeOut(250, 0, 0, 0);
-                            this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('OpenMap'));
-                        });
-                    } else {
-                        this.time.delayedCall(300, () => this.processEnemyTurn());
-                    }
+        switch (type) {
+            case 'QUICK':
+                if (distanceBetween > 1) {
+                    this.combatLogText.setText(`Enemy is too far away for a QUICK strike! Move closer.`);
+                    return;
                 }
-            });
+                this.isPlayerTurn = false;
+                damage = Math.floor(Math.random() * 3) + 2; // Low fast damage
+                this.combatLogText.setText(`Lightning Jab! You strike dealing ${damage} damage!`);
+                this.applyDamageToEnemy(damage);
+                break;
+
+            case 'NORMAL':
+                if (distanceBetween > 1) {
+                    this.combatLogText.setText(`Enemy is too far away to strike! Move closer.`);
+                    return;
+                }
+                this.isPlayerTurn = false;
+                damage = Math.floor(Math.random() * 5) + 3; // Regular damage
+                this.combatLogText.setText(`Standard Strike! You hit dealing ${damage} damage!`);
+                this.applyDamageToEnemy(damage);
+                break;
+
+            case 'POWER':
+                if (distanceBetween > 1) {
+                    this.combatLogText.setText(`Enemy is too far away for a heavy POWER blow! Move closer.`);
+                    return;
+                }
+                this.isPlayerTurn = false;
+                damage = Math.floor(Math.random() * 8) + 6; // High damage
+                this.combatLogText.setText(`Heavy Swing! You crush them for ${damage} damage!`);
+                this.applyDamageToEnemy(damage);
+                break;
+
+            case 'CHARGE':
+                this.isPlayerTurn = false;
+                this.combatLogText.setText(`You lunge forward aggressively to close the distance!`);
+                
+                // Advance player position right next to the enemy
+                this.playerGridX = this.enemyGridX - 1;
+                const targetX = this.worldCenterX + (this.playerGridX * this.GRID_SIZE);
+
+                this.tweens.add({
+                    targets: this.playerStickman,
+                    x: targetX,
+                    duration: 300,
+                    ease: 'Quad.easeOut',
+                    onUpdate: () => this.updateDynamicCamera(0),
+                    onComplete: () => {
+                        damage = Math.floor(Math.random() * 4) + 3;
+                        this.combatLogText.setText(`Charge hits! You slammed into them for ${damage} damage!`);
+                        this.applyDamageToEnemy(damage);
+                    }
+                });
+                break;
+
+            case 'REST':
+                this.isPlayerTurn = false;
+                this.combatLogText.setText(`You drop into a defensive stance to catch your breath and recover focus.`);
+                // Placeholder behavior for turn transition
+                this.time.delayedCall(1000, () => this.processEnemyTurn());
+                break;
+
+            case 'TAUNT':
+                this.isPlayerTurn = false;
+                this.combatLogText.setText(`You mock them openly! "Hey ${this.enemyIdentity.name}, my grandmother hits harder than that!"`);
+                // Placeholder behavior for turn transition
+                this.time.delayedCall(1000, () => this.processEnemyTurn());
+                break;
         }
+    }
+
+    private applyDamageToEnemy(damage: number) {
+        this.currentEnemyHp = Math.max(0, this.currentEnemyHp - damage);
+        
+        const newHpPercent = this.enemyTemplate.baseHp > 0 ? this.currentEnemyHp / this.enemyTemplate.baseHp : 0;
+        this.drawStatBar(this.enemyHpBar, this.enemyUIX, this.enemyUIY + 35, this.barWidth, this.barHeight, newHpPercent, 0xef4444);
+        this.enemyHpText.setText(`${this.currentEnemyHp}/${this.enemyTemplate.baseHp}`);
+
+        this.tweens.add({ 
+            targets: this.enemyGraphic, 
+            alpha: 0.3, yoyo: true, duration: 60, repeat: 1,
+            onComplete: () => {
+                if (this.currentEnemyHp <= 0) {
+                    this.combatLogText.setText(`Victory! Leaving arena...`);
+                    this.time.delayedCall(1500, () => {
+                        this.cameras.main.fadeOut(250, 0, 0, 0);
+                        this.uiCamera.fadeOut(250, 0, 0, 0);
+                        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('OpenMap'));
+                    });
+                } else {
+                    this.time.delayedCall(500, () => this.processEnemyTurn());
+                }
+            }
+        });
     }
 
     private drawStatBar(graphics: Phaser.GameObjects.Graphics, x: number, y: number, width: number, height: number, percentage: number, color: number) {
@@ -339,18 +393,59 @@ bg.setScrollFactor(0.5); // Parallax effect: moves slower than camera
     }
 
     private createDebugActionButtons(width: number, height: number) {
-        const moveLeftBtn = this.add.text(width * 0.25, height - 160, '⬅️ MOVE L', { backgroundColor: '#3b82f6', padding: { x: 14, y: 8 }, fontFamily: 'sans-serif', fontSize: '14px', color: '#ffffff' })
-            .setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.movePlayer('LEFT'));
+        const buttonActions = [
+            { label: '⬅️ LEFT', action: () => this.movePlayer('LEFT') },
+            { label: 'RIGHT ➡️', action: () => this.movePlayer('RIGHT') },
+            { label: '⚡ QUICK', action: () => this.executeAction('QUICK') },
+            { label: '⚔️ NORMAL', action: () => this.executeAction('NORMAL') },
+            { label: '💥 POWER', action: () => this.executeAction('POWER') },
+            { label: '🏃 CHARGE', action: () => this.executeAction('CHARGE') },
+            { label: '💤 REST', action: () => this.executeAction('REST') },
+            { label: '🗣️ TAUNT', action: () => this.executeAction('TAUNT') }
+        ];
 
-        const moveRightBtn = this.add.text(width * 0.40, height - 160, 'MOVE R ➡️', { backgroundColor: '#3b82f6', padding: { x: 14, y: 8 }, fontFamily: 'sans-serif', fontSize: '14px', color: '#ffffff' })
-            .setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.movePlayer('RIGHT'));
+        const buttonsPerRow = 4;
+        const buttonWidth = 120;
+        const buttonHeight = 36;
+        const gapX = 16;
+        const gapY = 12;
 
-        const strikeBtn = this.add.text(width * 0.55, height - 160, '⚔️ STRIKE', { backgroundColor: '#ef4444', padding: { x: 14, y: 8 }, fontFamily: 'sans-serif', fontSize: '14px', color: '#ffffff' })
-            .setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.executeAction('STRIKE'));
+        const totalGridWidth = (buttonsPerRow * buttonWidth) + ((buttonsPerRow - 1) * gapX);
+        const startX = (width - totalGridWidth) / 2 + (buttonWidth / 2);
+        const startY = height - 200; 
 
-        const fleeBtn = this.add.text(width * 0.70, height - 160, '🏳️ RETREAT', { backgroundColor: '#4b5563', padding: { x: 14, y: 8 }, fontFamily: 'sans-serif', fontSize: '14px', color: '#ffffff' })
-            .setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.executeAction('RETREAT'));
+        buttonActions.forEach((btn, index) => {
+            const row = Math.floor(index / buttonsPerRow);
+            const col = index % buttonsPerRow;
 
-        this.uiContainer.add([moveLeftBtn, moveRightBtn, strikeBtn, fleeBtn]);
+            const x = startX + (col * (buttonWidth + gapX));
+            const y = startY + (row * (buttonHeight + gapY));
+
+            // Color-coding: Red for striking/charging attacks, Blue for movement/utility steps
+            const pureKey = btn.label.replace(/[^A-Z]/g, '');
+            let btnColor = '#2563eb'; 
+            if (['QUICK', 'NORMAL', 'POWER', 'CHARGE'].includes(pureKey)) {
+                btnColor = '#dc2626'; 
+            }
+
+            const actionBtn = this.add.text(x, y, btn.label, {
+                backgroundColor: btnColor,
+                padding: { x: 10, y: 8 },
+                fontFamily: 'sans-serif',
+                fontSize: '13px',
+                fontStyle: 'bold',
+                color: '#ffffff',
+                align: 'center',
+                fixedWidth: buttonWidth
+            })
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', btn.action);
+
+            actionBtn.on('pointerover', () => actionBtn.setAlpha(0.8));
+            actionBtn.on('pointerout', () => actionBtn.setAlpha(1.0));
+
+            this.uiContainer.add(actionBtn);
+        });
     }
 }
