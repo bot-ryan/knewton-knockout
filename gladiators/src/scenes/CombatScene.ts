@@ -73,14 +73,31 @@ export default class CombatScene extends Phaser.Scene {
 
         this.uiContainer = this.add.container(0, 0);
 
-        // --- 1. WORLD SETUP ---
-        this.cameras.main.fadeIn(300, 0, 0, 0);
-        
-        // 🌟 NEW: Add Tiling Background
-        // Width 4000 ensures it tiles across a large area
-        const bg = this.add.tileSprite(this.worldCenterX, height * 0.5, 4000, 800, 'forest_bg');
-        bg.setDepth(-10); // Ensure it is behind everything
-        bg.setScrollFactor(0.5); // Parallax effect: moves slower than camera
+       // --- 1. WORLD SETUP ---
+this.cameras.main.fadeIn(300, 0, 0, 0);
+
+// 1. Grab the native dimensions of your background image
+const bgTexture = this.textures.get('forest_bg');
+const nativeHeight = bgTexture.getSourceImage().height;
+
+// 2. Set your desired scale factor (e.g., 1.2 or 1.5 if you want to upscale the pixel art)
+const bgScale = 1.35; 
+const displayHeight = nativeHeight * bgScale;
+
+// 3. Create the TileSprite with the EXACT display height so it cannot tile vertically
+const bg = this.add.tileSprite(
+    this.worldCenterX, 
+    height * 0.43, // 🌟 Tweak this Y anchor to perfectly align the forest floor with your characters
+    4000, 
+    displayHeight, 
+    'forest_bg'
+);
+
+// 4. Apply the scale internally to the tile texture texture
+bg.setTileScale(bgScale, bgScale);
+
+bg.setDepth(-10); // Ensure it is behind everything
+bg.setScrollFactor(0.5); // Parallax effect: moves slower than camera
 
         const initialPlayerX = this.worldCenterX + (this.playerGridX * this.GRID_SIZE);
         const initialEnemyX = this.worldCenterX + (this.enemyGridX * this.GRID_SIZE);
