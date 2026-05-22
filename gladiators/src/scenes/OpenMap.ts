@@ -34,6 +34,7 @@ export class OpenMap extends Phaser.Scene {
         console.log(`Gladiator: ${this.activePlayer.name}`);
         console.log(`Stamina Pool: ${this.activePlayer.secondaryStats.stamina.current}/${this.activePlayer.secondaryStats.stamina.max}`);
         console.log(`Health Pool: ${this.activePlayer.secondaryStats.hp.current}/${this.activePlayer.secondaryStats.hp.max}`);
+        console.log(`Mana Pool: ${this.activePlayer.secondaryStats.mp.current}/${this.activePlayer.secondaryStats.mp.max}`);
     }
 
     create() {
