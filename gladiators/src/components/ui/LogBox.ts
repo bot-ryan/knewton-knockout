@@ -1,4 +1,16 @@
 // src/components/ui/LogBox.ts
+/**
+ * LogBox is a reusable UI component that displays a history of text messages.
+ * It automatically manages text overflow and provides support for temporary tooltips.
+ * * @example
+ * // Usage in a Scene:
+ * const log = new LogBox(this, 40, 500, 400, 100);
+ * * // Adding a log entry:
+ * log.log("Combat started!");
+ * * // Using tooltips (e.g., on hover):
+ * button.on('pointerover', () => log.showTooltip("This is a special move."));
+ * button.on('pointerout', () => log.clearTooltip());
+ */
 import Phaser from 'phaser';
 
 export class LogBox extends Phaser.GameObjects.Container {
