@@ -1,11 +1,11 @@
 // src/scenes/CombatScene.ts
 import Phaser from 'phaser';
-import { Stickman } from '../components/Stickman';
 import { type PlayerData } from '../data/playerData';
 import { type EnemyTemplate } from '../data/Enemy/EnemyArchetypes';
 import { generateEnemyIdentity, type EnemyIdentity } from '../data/Enemy/EnemyIdentity';
 import { LogBox } from '../components/ui/LogBox';
-import { StatBar } from '../components/ui/StatBar'; // IMPORTED STATBAR
+import { StatBar } from '../components/ui/StatBar';
+import { BattleEntity } from '../components/BattleEntity';
 
 interface CombatPayload {
     character: PlayerData;
@@ -23,7 +23,6 @@ export default class CombatScene extends Phaser.Scene {
 
     private logBox!: LogBox;
 
-    // Upgraded to our custom StatBar component types
     private playerHpBar!: StatBar;
     private playerMpBar!: StatBar;
     private playerStaminaBar!: StatBar;
@@ -37,14 +36,13 @@ export default class CombatScene extends Phaser.Scene {
     private barWidth = 200;
     private barHeight = 16;
 
-    private playerStickman!: Stickman;
-    private enemyGraphic!: Phaser.GameObjects.Graphics;
+    // Upgraded from loose primitives to unified combat entity managers
+    private playerEntity!: BattleEntity;
+    private enemyEntity!: BattleEntity;
 
-    // Grid Data
+    // Configuration
     private readonly GRID_SIZE = 80;
     private worldCenterX = 0;
-    private playerGridX = -3;
-    private enemyGridX = 3;
     private isPlayerTurn = true;
 
     // UI Camera & Container properties
@@ -88,32 +86,27 @@ export default class CombatScene extends Phaser.Scene {
         const bgScale = 1.35;
         const displayHeight = nativeHeight * bgScale;
 
-        const bg = this.add.tileSprite(
-            this.worldCenterX,
-            height * 0.43,
-            4000,
-            displayHeight,
-            'forest_bg'
-        );
-
+        const bg = this.add.tileSprite(this.worldCenterX, height * 0.43, 4000, displayHeight, 'forest_bg');
         bg.setTileScale(bgScale, bgScale);
         bg.setDepth(-10);
         bg.setScrollFactor(0.5);
 
-        const initialPlayerX = this.worldCenterX + (this.playerGridX * this.GRID_SIZE);
-        const initialEnemyX = this.worldCenterX + (this.enemyGridX * this.GRID_SIZE);
+        // --- 2. ENTITY SPAWNING ---
+        // Spawn Player Entity
+        this.playerEntity = new BattleEntity(this, -3, height * 0.52, this.worldCenterX, this.GRID_SIZE, {
+            skinColor: this.playerState.appearance.skinColor,
+            expression: this.playerState.appearance.expression,
+            scale: 1.4
+        });
 
-        this.playerStickman = new Stickman(
-            this, initialPlayerX, height * 0.52,
-            this.playerState.appearance.skinColor, this.playerState.appearance.expression
-        );
+        // Spawn Enemy Entity as a real stickman using random generated features!
+        this.enemyEntity = new BattleEntity(this, 3, height * 0.52, this.worldCenterX, this.GRID_SIZE, {
+            skinColor: this.enemyIdentity.skinColor,
+            expression: this.enemyIdentity.expression,
+            scale: 1.4
+        });
 
-        this.enemyGraphic = this.add.graphics();
-        this.enemyGraphic.fillStyle(this.enemyIdentity.skinColor, 1);
-        this.enemyGraphic.fillRoundedRect(-25, -60, 50, 120, 16);
-        this.enemyGraphic.setPosition(initialEnemyX, height * 0.52);
-
-        // --- 2. UI SETUP ---
+        // --- 3. UI SETUP ---
         const titleText = this.add.text(width / 2, 35, `ARENA TIER: ${this.enemyTemplate.tier}`, {
             fontFamily: 'Verdana', fontSize: '18px', color: '#7e87a2', letterSpacing: 2
         }).setOrigin(0.5);
@@ -122,13 +115,12 @@ export default class CombatScene extends Phaser.Scene {
         this.createPlayerUI();
         this.createEnemyUI(width);
 
-        // Cleaned up the legacy duplicate logBox background drawings here!
         this.logBox = new LogBox(this, 40, height - 110, width - 80, 80);
         this.uiContainer.add(this.logBox);
 
         this.createDebugActionButtons(width, height);
 
-        // --- 3. DUAL CAMERA SETUP ---
+        // --- 4. DUAL CAMERA SETUP ---
         this.uiCamera = this.cameras.add(0, 0, width, height);
         this.cameras.main.ignore(this.uiContainer);
 
@@ -143,8 +135,10 @@ export default class CombatScene extends Phaser.Scene {
     }
 
     private updateDynamicCamera(duration: number = 400) {
-        const pX = this.playerStickman.x;
-        const eX = this.enemyGraphic.x;
+        if (!this.playerEntity || !this.enemyEntity) return;
+
+        const pX = this.playerEntity.x;
+        const eX = this.enemyEntity.x;
         const midpointX = (pX + eX) / 2;
         const distance = Math.abs(pX - eX);
         const visualPadding = 450;
@@ -166,26 +160,16 @@ export default class CombatScene extends Phaser.Scene {
         const distance = this.getPlayerMovementRange();
         const moveAmount = direction === 'LEFT' ? -distance : distance;
 
-        const intendedGridX = this.playerGridX + moveAmount;
-        if (intendedGridX >= this.enemyGridX) {
-            this.playerGridX = this.enemyGridX - 1;
-        } else {
-            this.playerGridX = intendedGridX;
-        }
+        const intendedGridX = this.playerEntity.gridX + moveAmount;
+        // Keep player at least one tile away from enemy boundary
+        const finalGridX = intendedGridX >= this.enemyEntity.gridX ? this.enemyEntity.gridX - 1 : intendedGridX;
 
-        const targetX = this.worldCenterX + (this.playerGridX * this.GRID_SIZE);
         this.logBox.log(`You dashed to the ${direction.toLowerCase()}.`);
 
-        this.tweens.add({
-            targets: this.playerStickman,
-            x: targetX,
-            duration: 400,
-            ease: 'Sine.easeInOut',
-            onUpdate: () => this.updateDynamicCamera(0),
-            onComplete: () => {
+        this.playerEntity.animateToGrid(finalGridX, 400, () => this.updateDynamicCamera(0))
+            .then(() => {
                 this.time.delayedCall(300, () => this.processEnemyTurn());
-            }
-        });
+            });
     }
 
     private processEnemyTurn() {
@@ -194,29 +178,18 @@ export default class CombatScene extends Phaser.Scene {
         this.logBox.log(`${this.enemyIdentity.name} is making a move...`);
 
         this.time.delayedCall(800, () => {
-            const distanceBetween = Math.abs(this.enemyGridX - this.playerGridX);
+            const distanceBetween = Math.abs(this.enemyEntity.gridX - this.playerEntity.gridX);
 
             if (distanceBetween > 1) {
-                this.enemyGridX -= 1;
-                const targetX = this.worldCenterX + (this.enemyGridX * this.GRID_SIZE);
-
+                const finalGridX = this.enemyEntity.gridX - 1;
                 this.logBox.log(`${this.enemyIdentity.name} advances towards you!`);
 
-                this.tweens.add({
-                    targets: this.enemyGraphic,
-                    x: targetX,
-                    duration: 400,
-                    ease: 'Sine.easeInOut',
-                    onUpdate: () => this.updateDynamicCamera(0),
-                    onComplete: () => this.endEnemyTurn()
-                });
+                this.enemyEntity.animateToGrid(finalGridX, 400, () => this.updateDynamicCamera(0))
+                    .then(() => this.endEnemyTurn());
             } else {
                 this.logBox.log(`${this.enemyIdentity.name} strikes you!`);
-                this.tweens.add({
-                    targets: this.playerStickman,
-                    alpha: 0.3, yoyo: true, duration: 60, repeat: 1,
-                    onComplete: () => this.endEnemyTurn()
-                });
+                this.playerEntity.playDamageFlash()
+                    .then(() => this.endEnemyTurn());
             }
         });
     }
@@ -229,7 +202,7 @@ export default class CombatScene extends Phaser.Scene {
     private executeAction(type: 'QUICK' | 'NORMAL' | 'POWER' | 'CHARGE' | 'REST' | 'TAUNT') {
         if (!this.isPlayerTurn) return;
 
-        const distanceBetween = Math.abs(this.enemyGridX - this.playerGridX);
+        const distanceBetween = Math.abs(this.enemyEntity.gridX - this.playerEntity.gridX);
         let damage = 0;
 
         switch (type) {
@@ -270,21 +243,14 @@ export default class CombatScene extends Phaser.Scene {
                 this.isPlayerTurn = false;
                 this.logBox.log(`You lunge forward aggressively to close the distance!`);
 
-                this.playerGridX = this.enemyGridX - 1;
-                const targetX = this.worldCenterX + (this.playerGridX * this.GRID_SIZE);
+                const targetGridX = this.enemyEntity.gridX - 1;
 
-                this.tweens.add({
-                    targets: this.playerStickman,
-                    x: targetX,
-                    duration: 300,
-                    ease: 'Quad.easeOut',
-                    onUpdate: () => this.updateDynamicCamera(0),
-                    onComplete: () => {
+                this.playerEntity.animateToGrid(targetGridX, 300, () => this.updateDynamicCamera(0))
+                    .then(() => {
                         damage = Math.floor(Math.random() * 4) + 3;
                         this.logBox.log(`Charge hits! You slammed into them for ${damage} damage!`);
                         this.applyDamageToEnemy(damage);
-                    }
-                });
+                    });
                 break;
 
             case 'REST':
@@ -303,24 +269,19 @@ export default class CombatScene extends Phaser.Scene {
 
     private applyDamageToEnemy(damage: number) {
         this.currentEnemyHp = Math.max(0, this.currentEnemyHp - damage);
-
-        // CLEAN & SNAPPY: The StatBar automatically manages percentages and text formatting now!
         this.enemyHpBar.update(this.currentEnemyHp, this.enemyTemplate.baseHp);
 
-        this.tweens.add({
-            targets: this.enemyGraphic,
-            alpha: 0.3, yoyo: true, duration: 60, repeat: 1,
-            onComplete: () => {
-                if (this.currentEnemyHp <= 0) {
-                    this.logBox.log(`Victory! Leaving arena...`);
-                    this.time.delayedCall(1500, () => {
-                        this.cameras.main.fadeOut(250, 0, 0, 0);
-                        this.uiCamera.fadeOut(250, 0, 0, 0);
-                        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('OpenMap'));
-                    });
-                } else {
-                    this.time.delayedCall(500, () => this.processEnemyTurn());
-                }
+        // Run the damage visual feedback animation out of our generic wrapper class
+        this.enemyEntity.playDamageFlash().then(() => {
+            if (this.currentEnemyHp <= 0) {
+                this.logBox.log(`Victory! Leaving arena...`);
+                this.time.delayedCall(1500, () => {
+                    this.cameras.main.fadeOut(250, 0, 0, 0);
+                    this.uiCamera.fadeOut(250, 0, 0, 0);
+                    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('OpenMap'));
+                });
+            } else {
+                this.time.delayedCall(500, () => this.processEnemyTurn());
             }
         });
     }
@@ -335,12 +296,10 @@ export default class CombatScene extends Phaser.Scene {
         const mp = this.playerState.secondaryStats.mp; 
         const stam = this.playerState.secondaryStats.stamina;
 
-        // Instantiate component stat bars
         this.playerHpBar = new StatBar(this, startX, startY + 35, this.barWidth, this.barHeight, 0xef4444);
         this.playerMpBar = new StatBar(this, startX, startY + 35 + gap, this.barWidth, this.barHeight, 0x3b82f6);
         this.playerStaminaBar = new StatBar(this, startX, startY + 35 + (gap * 2), this.barWidth, this.barHeight, 0x10b981);
 
-        // Feed data updates
         this.playerHpBar.update(hp.current, hp.max);
         this.playerMpBar.update(mp.current, mp.max);
         this.playerStaminaBar.update(stam.current, stam.max);
@@ -356,12 +315,10 @@ export default class CombatScene extends Phaser.Scene {
 
         const baseMp = (this.enemyTemplate as any).baseMp || 0;
 
-        // Instantiate component stat bars
         this.enemyHpBar = new StatBar(this, this.enemyUIX, this.enemyUIY + 35, this.barWidth, this.barHeight, 0xef4444);
         this.enemyMpBar = new StatBar(this, this.enemyUIX, this.enemyUIY + 35 + gap, this.barWidth, this.barHeight, 0x3b82f6);
         this.enemyStaminaBar = new StatBar(this, this.enemyUIX, this.enemyUIY + 35 + (gap * 2), this.barWidth, this.barHeight, 0x10b981);
 
-        // Feed data updates
         this.enemyHpBar.update(this.currentEnemyHp, this.enemyTemplate.baseHp);
         this.enemyMpBar.update(this.currentEnemyMp, baseMp);
         this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
