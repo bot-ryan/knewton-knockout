@@ -4,6 +4,7 @@ import { Stickman } from '../components/Stickman';
 import { type PlayerData } from '../data/playerData';
 import { type EnemyTemplate } from '../data/Enemy/EnemyArchetypes';
 import { generateEnemyIdentity, type EnemyIdentity } from '../data/Enemy/EnemyIdentity';
+import { LogBox } from '../components/ui/LogBox';
 
 interface CombatPayload {
     character: PlayerData;
@@ -19,7 +20,7 @@ export default class CombatScene extends Phaser.Scene {
     private currentEnemyMp = 0;
     private currentEnemyStamina = 0;
 
-    private combatLogText!: Phaser.GameObjects.Text;
+    private logBox!: LogBox;
     private enemyHpBar!: Phaser.GameObjects.Graphics;
     private enemyHpText!: Phaser.GameObjects.Text;
 
@@ -127,11 +128,10 @@ export default class CombatScene extends Phaser.Scene {
         logBox.lineStyle(2, 0x22253a, 1);
         logBox.strokeRoundedRect(40, height - 110, width - 80, 80, 8);
 
-        this.combatLogText = this.add.text(60, height - 95, `Encounter begins! You face ${this.enemyIdentity.name}.`, {
-            fontFamily: 'monospace', fontSize: '15px', color: '#cbd5e1', wordWrap: { width: width - 120 }
-        });
+        this.logBox = new LogBox(this, 40, height - 110, width - 80, 80);
+        this.uiContainer.add(this.logBox);
 
-        this.uiContainer.add([logBox, this.combatLogText]);
+        //this.uiContainer.add([logBox, this.logBox]);
         this.createDebugActionButtons(width, height);
 
         // --- 3. DUAL CAMERA SETUP ---
@@ -180,7 +180,7 @@ export default class CombatScene extends Phaser.Scene {
         }
 
         const targetX = this.worldCenterX + (this.playerGridX * this.GRID_SIZE);
-        this.combatLogText.setText(`You dashed to the ${direction.toLowerCase()}.`);
+        this.logBox.log(`You dashed to the ${direction.toLowerCase()}.`);
 
         this.tweens.add({
             targets: this.playerStickman,
@@ -197,7 +197,7 @@ export default class CombatScene extends Phaser.Scene {
     private processEnemyTurn() {
         if (this.currentEnemyHp <= 0) return;
 
-        this.combatLogText.setText(`${this.enemyIdentity.name} is making a move...`);
+        this.logBox.log(`${this.enemyIdentity.name} is making a move...`);
 
         this.time.delayedCall(800, () => {
             const distanceBetween = Math.abs(this.enemyGridX - this.playerGridX);
@@ -206,7 +206,7 @@ export default class CombatScene extends Phaser.Scene {
                 this.enemyGridX -= 1;
                 const targetX = this.worldCenterX + (this.enemyGridX * this.GRID_SIZE);
 
-                this.combatLogText.setText(`${this.enemyIdentity.name} advances towards you!`);
+                this.logBox.log(`${this.enemyIdentity.name} advances towards you!`);
 
                 this.tweens.add({
                     targets: this.enemyGraphic,
@@ -217,7 +217,7 @@ export default class CombatScene extends Phaser.Scene {
                     onComplete: () => this.endEnemyTurn()
                 });
             } else {
-                this.combatLogText.setText(`${this.enemyIdentity.name} strikes you!`);
+                this.logBox.log(`${this.enemyIdentity.name} strikes you!`);
                 this.tweens.add({
                     targets: this.playerStickman,
                     alpha: 0.3, yoyo: true, duration: 60, repeat: 1,
@@ -229,7 +229,7 @@ export default class CombatScene extends Phaser.Scene {
 
     private endEnemyTurn() {
         this.isPlayerTurn = true;
-        this.combatLogText.setText(`It is your turn.`);
+        this.logBox.log(`It is your turn.`);
     }
 
     private executeAction(type: 'QUICK' | 'NORMAL' | 'POWER' | 'CHARGE' | 'REST' | 'TAUNT') {
@@ -241,40 +241,40 @@ export default class CombatScene extends Phaser.Scene {
         switch (type) {
             case 'QUICK':
                 if (distanceBetween > 1) {
-                    this.combatLogText.setText(`Enemy is too far away for a QUICK strike! Move closer.`);
+                    this.logBox.log(`Enemy is too far away for a QUICK strike! Move closer.`);
                     return;
                 }
                 this.isPlayerTurn = false;
                 damage = Math.floor(Math.random() * 3) + 2; // Low fast damage
-                this.combatLogText.setText(`Lightning Jab! You strike dealing ${damage} damage!`);
+                this.logBox.log(`Lightning Jab! You strike dealing ${damage} damage!`);
                 this.applyDamageToEnemy(damage);
                 break;
 
             case 'NORMAL':
                 if (distanceBetween > 1) {
-                    this.combatLogText.setText(`Enemy is too far away to strike! Move closer.`);
+                    this.logBox.log(`Enemy is too far away to strike! Move closer.`);
                     return;
                 }
                 this.isPlayerTurn = false;
                 damage = Math.floor(Math.random() * 5) + 3; // Regular damage
-                this.combatLogText.setText(`Standard Strike! You hit dealing ${damage} damage!`);
+                this.logBox.log(`Standard Strike! You hit dealing ${damage} damage!`);
                 this.applyDamageToEnemy(damage);
                 break;
 
             case 'POWER':
                 if (distanceBetween > 1) {
-                    this.combatLogText.setText(`Enemy is too far away for a heavy POWER blow! Move closer.`);
+                    this.logBox.log(`Enemy is too far away for a heavy POWER blow! Move closer.`);
                     return;
                 }
                 this.isPlayerTurn = false;
                 damage = Math.floor(Math.random() * 8) + 6; // High damage
-                this.combatLogText.setText(`Heavy Swing! You crush them for ${damage} damage!`);
+                this.logBox.log(`Heavy Swing! You crush them for ${damage} damage!`);
                 this.applyDamageToEnemy(damage);
                 break;
 
             case 'CHARGE':
                 this.isPlayerTurn = false;
-                this.combatLogText.setText(`You lunge forward aggressively to close the distance!`);
+                this.logBox.log(`You lunge forward aggressively to close the distance!`);
 
                 // Advance player position right next to the enemy
                 this.playerGridX = this.enemyGridX - 1;
@@ -288,7 +288,7 @@ export default class CombatScene extends Phaser.Scene {
                     onUpdate: () => this.updateDynamicCamera(0),
                     onComplete: () => {
                         damage = Math.floor(Math.random() * 4) + 3;
-                        this.combatLogText.setText(`Charge hits! You slammed into them for ${damage} damage!`);
+                        this.logBox.log(`Charge hits! You slammed into them for ${damage} damage!`);
                         this.applyDamageToEnemy(damage);
                     }
                 });
@@ -296,14 +296,14 @@ export default class CombatScene extends Phaser.Scene {
 
             case 'REST':
                 this.isPlayerTurn = false;
-                this.combatLogText.setText(`You drop into a defensive stance to catch your breath and recover focus.`);
+                this.logBox.log(`You drop into a defensive stance to catch your breath and recover focus.`);
                 // Placeholder behavior for turn transition
                 this.time.delayedCall(1000, () => this.processEnemyTurn());
                 break;
 
             case 'TAUNT':
                 this.isPlayerTurn = false;
-                this.combatLogText.setText(`You mock them openly! "Hey ${this.enemyIdentity.name}, my grandmother hits harder than that!"`);
+                this.logBox.log(`You mock them openly! "Hey ${this.enemyIdentity.name}, my grandmother hits harder than that!"`);
                 // Placeholder behavior for turn transition
                 this.time.delayedCall(1000, () => this.processEnemyTurn());
                 break;
@@ -322,7 +322,7 @@ export default class CombatScene extends Phaser.Scene {
             alpha: 0.3, yoyo: true, duration: 60, repeat: 1,
             onComplete: () => {
                 if (this.currentEnemyHp <= 0) {
-                    this.combatLogText.setText(`Victory! Leaving arena...`);
+                    this.logBox.log(`Victory! Leaving arena...`);
                     this.time.delayedCall(1500, () => {
                         this.cameras.main.fadeOut(250, 0, 0, 0);
                         this.uiCamera.fadeOut(250, 0, 0, 0);
@@ -393,15 +393,15 @@ export default class CombatScene extends Phaser.Scene {
     }
 
     private createDebugActionButtons(width: number, height: number) {
-        const buttonActions = [
-            { label: '⬅️ LEFT', action: () => this.movePlayer('LEFT') },
-            { label: 'RIGHT ➡️', action: () => this.movePlayer('RIGHT') },
-            { label: '⚡ QUICK', action: () => this.executeAction('QUICK') },
-            { label: '⚔️ NORMAL', action: () => this.executeAction('NORMAL') },
-            { label: '💥 POWER', action: () => this.executeAction('POWER') },
-            { label: '🏃 CHARGE', action: () => this.executeAction('CHARGE') },
-            { label: '💤 REST', action: () => this.executeAction('REST') },
-            { label: '🗣️ TAUNT', action: () => this.executeAction('TAUNT') }
+       const buttonActions = [
+            { label: '⬅️ LEFT', description: 'Dash left to increase distance.', action: () => this.movePlayer('LEFT') },
+            { label: 'RIGHT ➡️', description: 'Dash right to close the distance.', action: () => this.movePlayer('RIGHT') },
+            { label: '⚡ QUICK', description: 'A fast, low-damage strike. Requires close range.', action: () => this.executeAction('QUICK') },
+            { label: '⚔️ NORMAL', description: 'A standard melee attack. Requires close range.', action: () => this.executeAction('NORMAL') },
+            { label: '💥 POWER', description: 'A heavy, high-damage blow. Requires close range.', action: () => this.executeAction('POWER') },
+            { label: '🏃 CHARGE', description: 'Lunge forward and strike immediately!', action: () => this.executeAction('CHARGE') },
+            { label: '💤 REST', description: 'Defend and catch your breath to restore stamina.', action: () => this.executeAction('REST') },
+            { label: '🗣️ TAUNT', description: 'Mock the enemy. May alter their behavior.', action: () => this.executeAction('TAUNT') }
         ];
 
         const buttonsPerRow = 4;
@@ -442,8 +442,16 @@ export default class CombatScene extends Phaser.Scene {
                 .setInteractive({ useHandCursor: true })
                 .on('pointerdown', btn.action);
 
-            actionBtn.on('pointerover', () => actionBtn.setAlpha(0.8));
-            actionBtn.on('pointerout', () => actionBtn.setAlpha(1.0));
+            // 2. Wire up the hover events to your new LogBox methods
+            actionBtn.on('pointerover', () => {
+                actionBtn.setAlpha(0.8);
+                this.logBox.showTooltip(btn.description); // Show description
+            });
+
+            actionBtn.on('pointerout', () => {
+                actionBtn.setAlpha(1.0);
+                this.logBox.clearTooltip(); // Restore log history
+            });
 
             this.uiContainer.add(actionBtn);
         });

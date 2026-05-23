@@ -1,6 +1,6 @@
 // src/gameinit/GameInit.ts
 import Phaser from "phaser";
-import { loadGameFonts } from "./Fonts";
+import { loadGameFonts } from "./fonts";
 import { preloadGamePhotos } from "./Photos";
 
 export default class Init extends Phaser.Scene {
