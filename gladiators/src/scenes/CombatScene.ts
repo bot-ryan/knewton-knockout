@@ -5,6 +5,7 @@ import { type PlayerData } from '../data/playerData';
 import { type EnemyTemplate } from '../data/Enemy/EnemyArchetypes';
 import { generateEnemyIdentity, type EnemyIdentity } from '../data/Enemy/EnemyIdentity';
 import { LogBox } from '../components/ui/LogBox';
+import { StatBar } from '../components/ui/StatBar'; // IMPORTED STATBAR
 
 interface CombatPayload {
     character: PlayerData;
@@ -21,8 +22,15 @@ export default class CombatScene extends Phaser.Scene {
     private currentEnemyStamina = 0;
 
     private logBox!: LogBox;
-    private enemyHpBar!: Phaser.GameObjects.Graphics;
-    private enemyHpText!: Phaser.GameObjects.Text;
+
+    // Upgraded to our custom StatBar component types
+    private playerHpBar!: StatBar;
+    private playerMpBar!: StatBar;
+    private playerStaminaBar!: StatBar;
+
+    private enemyHpBar!: StatBar;
+    private enemyMpBar!: StatBar;
+    private enemyStaminaBar!: StatBar;
 
     private enemyUIX = 0;
     private enemyUIY = 40;
@@ -47,9 +55,7 @@ export default class CombatScene extends Phaser.Scene {
         super('CombatScene');
     }
 
-    // 🌟 IMPORTANT: You must have a preload method to load your background image!
     preload() {
-        // Ensure this path matches where you saved 'forest_bg.png'
         this.load.image('forest_bg', 'assets/forest_bg.png');
     }
 
@@ -77,28 +83,22 @@ export default class CombatScene extends Phaser.Scene {
         // --- 1. WORLD SETUP ---
         this.cameras.main.fadeIn(300, 0, 0, 0);
 
-        // 1. Grab the native dimensions of your background image
         const bgTexture = this.textures.get('forest_bg');
         const nativeHeight = bgTexture.getSourceImage().height;
-
-        // 2. Set your desired scale factor (e.g., 1.2 or 1.5 if you want to upscale the pixel art)
         const bgScale = 1.35;
         const displayHeight = nativeHeight * bgScale;
 
-        // 3. Create the TileSprite with the EXACT display height so it cannot tile vertically
         const bg = this.add.tileSprite(
             this.worldCenterX,
-            height * 0.43, // 🌟 Tweak this Y anchor to perfectly align the forest floor with your characters
+            height * 0.43,
             4000,
             displayHeight,
             'forest_bg'
         );
 
-        // 4. Apply the scale internally to the tile texture texture
         bg.setTileScale(bgScale, bgScale);
-
-        bg.setDepth(-10); // Ensure it is behind everything
-        bg.setScrollFactor(0.5); // Parallax effect: moves slower than camera
+        bg.setDepth(-10);
+        bg.setScrollFactor(0.5);
 
         const initialPlayerX = this.worldCenterX + (this.playerGridX * this.GRID_SIZE);
         const initialEnemyX = this.worldCenterX + (this.enemyGridX * this.GRID_SIZE);
@@ -122,16 +122,10 @@ export default class CombatScene extends Phaser.Scene {
         this.createPlayerUI();
         this.createEnemyUI(width);
 
-        const logBox = this.add.graphics();
-        logBox.fillStyle(0x07080d, 0.85);
-        logBox.fillRoundedRect(40, height - 110, width - 80, 80, 8);
-        logBox.lineStyle(2, 0x22253a, 1);
-        logBox.strokeRoundedRect(40, height - 110, width - 80, 80, 8);
-
+        // Cleaned up the legacy duplicate logBox background drawings here!
         this.logBox = new LogBox(this, 40, height - 110, width - 80, 80);
         this.uiContainer.add(this.logBox);
 
-        //this.uiContainer.add([logBox, this.logBox]);
         this.createDebugActionButtons(width, height);
 
         // --- 3. DUAL CAMERA SETUP ---
@@ -245,7 +239,7 @@ export default class CombatScene extends Phaser.Scene {
                     return;
                 }
                 this.isPlayerTurn = false;
-                damage = Math.floor(Math.random() * 3) + 2; // Low fast damage
+                damage = Math.floor(Math.random() * 3) + 2;
                 this.logBox.log(`Lightning Jab! You strike dealing ${damage} damage!`);
                 this.applyDamageToEnemy(damage);
                 break;
@@ -256,7 +250,7 @@ export default class CombatScene extends Phaser.Scene {
                     return;
                 }
                 this.isPlayerTurn = false;
-                damage = Math.floor(Math.random() * 5) + 3; // Regular damage
+                damage = Math.floor(Math.random() * 5) + 3;
                 this.logBox.log(`Standard Strike! You hit dealing ${damage} damage!`);
                 this.applyDamageToEnemy(damage);
                 break;
@@ -267,7 +261,7 @@ export default class CombatScene extends Phaser.Scene {
                     return;
                 }
                 this.isPlayerTurn = false;
-                damage = Math.floor(Math.random() * 8) + 6; // High damage
+                damage = Math.floor(Math.random() * 8) + 6;
                 this.logBox.log(`Heavy Swing! You crush them for ${damage} damage!`);
                 this.applyDamageToEnemy(damage);
                 break;
@@ -276,7 +270,6 @@ export default class CombatScene extends Phaser.Scene {
                 this.isPlayerTurn = false;
                 this.logBox.log(`You lunge forward aggressively to close the distance!`);
 
-                // Advance player position right next to the enemy
                 this.playerGridX = this.enemyGridX - 1;
                 const targetX = this.worldCenterX + (this.playerGridX * this.GRID_SIZE);
 
@@ -297,14 +290,12 @@ export default class CombatScene extends Phaser.Scene {
             case 'REST':
                 this.isPlayerTurn = false;
                 this.logBox.log(`You drop into a defensive stance to catch your breath and recover focus.`);
-                // Placeholder behavior for turn transition
                 this.time.delayedCall(1000, () => this.processEnemyTurn());
                 break;
 
             case 'TAUNT':
                 this.isPlayerTurn = false;
                 this.logBox.log(`You mock them openly! "Hey ${this.enemyIdentity.name}, my grandmother hits harder than that!"`);
-                // Placeholder behavior for turn transition
                 this.time.delayedCall(1000, () => this.processEnemyTurn());
                 break;
         }
@@ -313,9 +304,8 @@ export default class CombatScene extends Phaser.Scene {
     private applyDamageToEnemy(damage: number) {
         this.currentEnemyHp = Math.max(0, this.currentEnemyHp - damage);
 
-        const newHpPercent = this.enemyTemplate.baseHp > 0 ? this.currentEnemyHp / this.enemyTemplate.baseHp : 0;
-        this.drawStatBar(this.enemyHpBar, this.enemyUIX, this.enemyUIY + 35, this.barWidth, this.barHeight, newHpPercent, 0xef4444);
-        this.enemyHpText.setText(`${this.currentEnemyHp}/${this.enemyTemplate.baseHp}`);
+        // CLEAN & SNAPPY: The StatBar automatically manages percentages and text formatting now!
+        this.enemyHpBar.update(this.currentEnemyHp, this.enemyTemplate.baseHp);
 
         this.tweens.add({
             targets: this.enemyGraphic,
@@ -335,61 +325,48 @@ export default class CombatScene extends Phaser.Scene {
         });
     }
 
-    private drawStatBar(graphics: Phaser.GameObjects.Graphics, x: number, y: number, width: number, height: number, percentage: number, color: number) {
-        graphics.clear();
-        graphics.fillStyle(0x222222, 1);
-        graphics.fillRect(x, y, width, height);
-        const clampedPercent = Math.max(0, Math.min(1, percentage));
-        graphics.fillStyle(color, 1);
-        graphics.fillRect(x, y, width * clampedPercent, height);
-        graphics.lineStyle(2, 0x000000, 1);
-        graphics.strokeRect(x, y, width, height);
-    }
-
     private createPlayerUI() {
         const startX = 40; const startY = 40; const gap = 24;
-        const nameText = this.add.text(startX, startY, this.playerState.name.toUpperCase(), { fontFamily: 'sans-serif', fontSize: '22px', color: '#ffffff', fontStyle: 'bold' });
+        const nameText = this.add.text(startX, startY, this.playerState.name.toUpperCase(), { 
+            fontFamily: 'sans-serif', fontSize: '22px', color: '#ffffff', fontStyle: 'bold' 
+        });
 
-        const hpBar = this.add.graphics(); const mpBar = this.add.graphics(); const staminaBar = this.add.graphics();
-        const hp = this.playerState.secondaryStats.hp; const mp = this.playerState.secondaryStats.mp; const stam = this.playerState.secondaryStats.stamina;
-        const hpPercent = hp.max > 0 ? hp.current / hp.max : 0; const mpPercent = mp.max > 0 ? mp.current / mp.max : 0; const staminaPercent = stam.max > 0 ? stam.current / stam.max : 0;
+        const hp = this.playerState.secondaryStats.hp; 
+        const mp = this.playerState.secondaryStats.mp; 
+        const stam = this.playerState.secondaryStats.stamina;
 
-        this.drawStatBar(hpBar, startX, startY + 35, this.barWidth, this.barHeight, hpPercent, 0xef4444);
-        this.drawStatBar(mpBar, startX, startY + 35 + gap, this.barWidth, this.barHeight, mpPercent, 0x3b82f6);
-        this.drawStatBar(staminaBar, startX, startY + 35 + (gap * 2), this.barWidth, this.barHeight, staminaPercent, 0x10b981);
+        // Instantiate component stat bars
+        this.playerHpBar = new StatBar(this, startX, startY + 35, this.barWidth, this.barHeight, 0xef4444);
+        this.playerMpBar = new StatBar(this, startX, startY + 35 + gap, this.barWidth, this.barHeight, 0x3b82f6);
+        this.playerStaminaBar = new StatBar(this, startX, startY + 35 + (gap * 2), this.barWidth, this.barHeight, 0x10b981);
 
-        const textStyle = { fontFamily: 'monospace', fontSize: '11px', color: '#ffffff', fontStyle: 'bold' };
-        const textX = startX + (this.barWidth / 2); const halfBar = this.barHeight / 2;
+        // Feed data updates
+        this.playerHpBar.update(hp.current, hp.max);
+        this.playerMpBar.update(mp.current, mp.max);
+        this.playerStaminaBar.update(stam.current, stam.max);
 
-        const t1 = this.add.text(textX, startY + 35 + halfBar, `${hp.current}/${hp.max}`, textStyle).setOrigin(0.5);
-        const t2 = this.add.text(textX, startY + 35 + gap + halfBar, `${mp.current}/${mp.max}`, textStyle).setOrigin(0.5);
-        const t3 = this.add.text(textX, startY + 35 + (gap * 2) + halfBar, `${stam.current}/${stam.max}`, textStyle).setOrigin(0.5);
-
-        this.uiContainer.add([nameText, hpBar, mpBar, staminaBar, t1, t2, t3]);
+        this.uiContainer.add([nameText, this.playerHpBar, this.playerMpBar, this.playerStaminaBar]);
     }
 
     private createEnemyUI(screenWidth: number) {
         this.enemyUIX = screenWidth - this.barWidth - 40; this.enemyUIY = 40; const gap = 24;
-        const nameText = this.add.text(screenWidth - 40, this.enemyUIY, this.enemyIdentity.name, { fontFamily: 'sans-serif', fontSize: '22px', color: '#ffb0b0', fontStyle: 'bold' }).setOrigin(1, 0);
+        const nameText = this.add.text(screenWidth - 40, this.enemyUIY, this.enemyIdentity.name, { 
+            fontFamily: 'sans-serif', fontSize: '22px', color: '#ffb0b0', fontStyle: 'bold' 
+        }).setOrigin(1, 0);
 
-        this.enemyHpBar = this.add.graphics(); const mpBar = this.add.graphics(); const staminaBar = this.add.graphics();
         const baseMp = (this.enemyTemplate as any).baseMp || 0;
-        const hpPercent = this.enemyTemplate.baseHp > 0 ? this.currentEnemyHp / this.enemyTemplate.baseHp : 0;
-        const mpPercent = baseMp > 0 ? this.currentEnemyMp / baseMp : 0;
-        const staminaPercent = this.enemyTemplate.baseStamina > 0 ? this.currentEnemyStamina / this.enemyTemplate.baseStamina : 0;
 
-        this.drawStatBar(this.enemyHpBar, this.enemyUIX, this.enemyUIY + 35, this.barWidth, this.barHeight, hpPercent, 0xef4444);
-        this.drawStatBar(mpBar, this.enemyUIX, this.enemyUIY + 35 + gap, this.barWidth, this.barHeight, mpPercent, 0x3b82f6);
-        this.drawStatBar(staminaBar, this.enemyUIX, this.enemyUIY + 35 + (gap * 2), this.barWidth, this.barHeight, staminaPercent, 0x10b981);
+        // Instantiate component stat bars
+        this.enemyHpBar = new StatBar(this, this.enemyUIX, this.enemyUIY + 35, this.barWidth, this.barHeight, 0xef4444);
+        this.enemyMpBar = new StatBar(this, this.enemyUIX, this.enemyUIY + 35 + gap, this.barWidth, this.barHeight, 0x3b82f6);
+        this.enemyStaminaBar = new StatBar(this, this.enemyUIX, this.enemyUIY + 35 + (gap * 2), this.barWidth, this.barHeight, 0x10b981);
 
-        const textStyle = { fontFamily: 'monospace', fontSize: '11px', color: '#ffffff', fontStyle: 'bold' };
-        const textX = this.enemyUIX + (this.barWidth / 2); const halfBar = this.barHeight / 2;
+        // Feed data updates
+        this.enemyHpBar.update(this.currentEnemyHp, this.enemyTemplate.baseHp);
+        this.enemyMpBar.update(this.currentEnemyMp, baseMp);
+        this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
 
-        this.enemyHpText = this.add.text(textX, this.enemyUIY + 35 + halfBar, `${this.currentEnemyHp}/${this.enemyTemplate.baseHp}`, textStyle).setOrigin(0.5);
-        const t2 = this.add.text(textX, this.enemyUIY + 35 + gap + halfBar, `${this.currentEnemyMp}/${baseMp}`, textStyle).setOrigin(0.5);
-        const t3 = this.add.text(textX, this.enemyUIY + 35 + (gap * 2) + halfBar, `${this.currentEnemyStamina}/${this.enemyTemplate.baseStamina}`, textStyle).setOrigin(0.5);
-
-        this.uiContainer.add([nameText, this.enemyHpBar, mpBar, staminaBar, this.enemyHpText, t2, t3]);
+        this.uiContainer.add([nameText, this.enemyHpBar, this.enemyMpBar, this.enemyStaminaBar]);
     }
 
     private createDebugActionButtons(width: number, height: number) {
@@ -421,7 +398,6 @@ export default class CombatScene extends Phaser.Scene {
             const x = startX + (col * (buttonWidth + gapX));
             const y = startY + (row * (buttonHeight + gapY));
 
-            // Color-coding: Red for striking/charging attacks, Blue for movement/utility steps
             const pureKey = btn.label.replace(/[^A-Z]/g, '');
             let btnColor = '#2563eb';
             if (['QUICK', 'NORMAL', 'POWER', 'CHARGE'].includes(pureKey)) {
@@ -442,15 +418,14 @@ export default class CombatScene extends Phaser.Scene {
                 .setInteractive({ useHandCursor: true })
                 .on('pointerdown', btn.action);
 
-            // 2. Wire up the hover events to your new LogBox methods
             actionBtn.on('pointerover', () => {
                 actionBtn.setAlpha(0.8);
-                this.logBox.showTooltip(btn.description); // Show description
+                this.logBox.showTooltip(btn.description);
             });
 
             actionBtn.on('pointerout', () => {
                 actionBtn.setAlpha(1.0);
-                this.logBox.clearTooltip(); // Restore log history
+                this.logBox.clearTooltip();
             });
 
             this.uiContainer.add(actionBtn);
