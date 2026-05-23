@@ -6,6 +6,7 @@ import { generateEnemyIdentity, type EnemyIdentity } from '../data/Enemy/EnemyId
 import { LogBox } from '../components/ui/LogBox';
 import { StatBar } from '../components/ui/StatBar';
 import { BattleEntity } from '../components/BattleEntity';
+import {ActionMenu, type ActionItem} from '../components/ui/ActionMenu';
 
 interface CombatPayload {
     character: PlayerData;
@@ -118,9 +119,32 @@ export default class CombatScene extends Phaser.Scene {
         this.logBox = new LogBox(this, 40, height - 110, width - 80, 80);
         this.uiContainer.add(this.logBox);
 
-        this.createDebugActionButtons(width, height);
+        // --- 4. ACTION MENU SETUP ---
+        const buttonActions: ActionItem[] = [
+            { label: '⬅️ LEFT', description: 'Dash left to increase distance.', isAttack: false, action: () => this.movePlayer('LEFT') },
+            { label: 'RIGHT ➡️', description: 'Dash right to close the distance.', isAttack: false, action: () => this.movePlayer('RIGHT') },
+            { label: '⚡ QUICK', description: 'A fast, low-damage strike. Requires close range.', isAttack: true, action: () => this.executeAction('QUICK') },
+            { label: '⚔️ NORMAL', description: 'A standard melee attack. Requires close range.', isAttack: true, action: () => this.executeAction('NORMAL') },
+            { label: '💥 POWER', description: 'A heavy, high-damage blow. Requires close range.', isAttack: true, action: () => this.executeAction('POWER') },
+            { label: '🏃 CHARGE', description: 'Lunge forward and strike immediately!', isAttack: true, action: () => this.executeAction('CHARGE') },
+            { label: '💤 REST', description: 'Defend and catch your breath to restore stamina.', isAttack: false, action: () => this.executeAction('REST') },
+            { label: '🗣️ TAUNT', description: 'Mock the enemy. May alter their behavior.', isAttack: false, action: () => this.executeAction('TAUNT') }
+        ];
 
-        // --- 4. DUAL CAMERA SETUP ---
+        // Instantiate the ActionMenu and pass the tooltip callbacks directly to the LogBox
+        const actionMenu = new ActionMenu(
+            this,
+            this.worldCenterX,
+            height - 200,
+            buttonActions,
+            (desc) => this.logBox.showTooltip(desc),
+            () => this.logBox.clearTooltip()
+        );
+        
+        // Add it to the UI camera container so it doesn't move when zooming
+        this.uiContainer.add(actionMenu);
+
+        // --- 5. DUAL CAMERA SETUP ---
         this.uiCamera = this.cameras.add(0, 0, width, height);
         this.cameras.main.ignore(this.uiContainer);
 
@@ -326,66 +350,5 @@ export default class CombatScene extends Phaser.Scene {
         this.uiContainer.add([nameText, this.enemyHpBar, this.enemyMpBar, this.enemyStaminaBar]);
     }
 
-    private createDebugActionButtons(width: number, height: number) {
-       const buttonActions = [
-            { label: '⬅️ LEFT', description: 'Dash left to increase distance.', action: () => this.movePlayer('LEFT') },
-            { label: 'RIGHT ➡️', description: 'Dash right to close the distance.', action: () => this.movePlayer('RIGHT') },
-            { label: '⚡ QUICK', description: 'A fast, low-damage strike. Requires close range.', action: () => this.executeAction('QUICK') },
-            { label: '⚔️ NORMAL', description: 'A standard melee attack. Requires close range.', action: () => this.executeAction('NORMAL') },
-            { label: '💥 POWER', description: 'A heavy, high-damage blow. Requires close range.', action: () => this.executeAction('POWER') },
-            { label: '🏃 CHARGE', description: 'Lunge forward and strike immediately!', action: () => this.executeAction('CHARGE') },
-            { label: '💤 REST', description: 'Defend and catch your breath to restore stamina.', action: () => this.executeAction('REST') },
-            { label: '🗣️ TAUNT', description: 'Mock the enemy. May alter their behavior.', action: () => this.executeAction('TAUNT') }
-        ];
-
-        const buttonsPerRow = 4;
-        const buttonWidth = 120;
-        const buttonHeight = 36;
-        const gapX = 16;
-        const gapY = 12;
-
-        const totalGridWidth = (buttonsPerRow * buttonWidth) + ((buttonsPerRow - 1) * gapX);
-        const startX = (width - totalGridWidth) / 2 + (buttonWidth / 2);
-        const startY = height - 200;
-
-        buttonActions.forEach((btn, index) => {
-            const row = Math.floor(index / buttonsPerRow);
-            const col = index % buttonsPerRow;
-
-            const x = startX + (col * (buttonWidth + gapX));
-            const y = startY + (row * (buttonHeight + gapY));
-
-            const pureKey = btn.label.replace(/[^A-Z]/g, '');
-            let btnColor = '#2563eb';
-            if (['QUICK', 'NORMAL', 'POWER', 'CHARGE'].includes(pureKey)) {
-                btnColor = '#dc2626';
-            }
-
-            const actionBtn = this.add.text(x, y, btn.label, {
-                backgroundColor: btnColor,
-                padding: { x: 10, y: 8 },
-                fontFamily: 'sans-serif',
-                fontSize: '13px',
-                fontStyle: 'bold',
-                color: '#ffffff',
-                align: 'center',
-                fixedWidth: buttonWidth
-            })
-                .setOrigin(0.5)
-                .setInteractive({ useHandCursor: true })
-                .on('pointerdown', btn.action);
-
-            actionBtn.on('pointerover', () => {
-                actionBtn.setAlpha(0.8);
-                this.logBox.showTooltip(btn.description);
-            });
-
-            actionBtn.on('pointerout', () => {
-                actionBtn.setAlpha(1.0);
-                this.logBox.clearTooltip();
-            });
-
-            this.uiContainer.add(actionBtn);
-        });
-    }
+    
 }
