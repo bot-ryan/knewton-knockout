@@ -6,7 +6,7 @@ import { generateEnemyIdentity, type EnemyIdentity } from '../data/Enemy/EnemyId
 import { LogBox } from '../components/ui/LogBox';
 import { StatBar } from '../components/ui/StatBar';
 import { BattleEntity } from '../components/BattleEntity';
-import {ActionMenu, type ActionItem} from '../components/ui/ActionMenu';
+import { ActionMenu, type ActionItem } from '../components/ui/ActionMenu';
 
 interface CombatPayload {
     character: PlayerData;
@@ -140,7 +140,7 @@ export default class CombatScene extends Phaser.Scene {
             (desc) => this.logBox.showTooltip(desc),
             () => this.logBox.clearTooltip()
         );
-        
+
         // Add it to the UI camera container so it doesn't move when zooming
         this.uiContainer.add(actionMenu);
 
@@ -224,71 +224,79 @@ export default class CombatScene extends Phaser.Scene {
     }
 
     private executeAction(type: 'QUICK' | 'NORMAL' | 'POWER' | 'CHARGE' | 'REST' | 'TAUNT') {
-        if (!this.isPlayerTurn) return;
+    if (!this.isPlayerTurn) return;
 
-        const distanceBetween = Math.abs(this.enemyEntity.gridX - this.playerEntity.gridX);
-        let damage = 0;
+    const distanceBetween = Math.abs(this.enemyEntity.gridX - this.playerEntity.gridX);
+    
+    // 1. Stamina Cost Definition
+    const costs = { 'QUICK': 5, 'NORMAL': 10, 'POWER': 20, 'CHARGE': 15 };
+    const currentStamina = this.playerState.secondaryStats.stamina.current;
 
-        switch (type) {
-            case 'QUICK':
-                if (distanceBetween > 1) {
-                    this.logBox.log(`Enemy is too far away for a QUICK strike! Move closer.`);
-                    return;
-                }
-                this.isPlayerTurn = false;
-                damage = Math.floor(Math.random() * 3) + 2;
-                this.logBox.log(`Lightning Jab! You strike dealing ${damage} damage!`);
-                this.applyDamageToEnemy(damage);
-                break;
-
-            case 'NORMAL':
-                if (distanceBetween > 1) {
-                    this.logBox.log(`Enemy is too far away to strike! Move closer.`);
-                    return;
-                }
-                this.isPlayerTurn = false;
-                damage = Math.floor(Math.random() * 5) + 3;
-                this.logBox.log(`Standard Strike! You hit dealing ${damage} damage!`);
-                this.applyDamageToEnemy(damage);
-                break;
-
-            case 'POWER':
-                if (distanceBetween > 1) {
-                    this.logBox.log(`Enemy is too far away for a heavy POWER blow! Move closer.`);
-                    return;
-                }
-                this.isPlayerTurn = false;
-                damage = Math.floor(Math.random() * 8) + 6;
-                this.logBox.log(`Heavy Swing! You crush them for ${damage} damage!`);
-                this.applyDamageToEnemy(damage);
-                break;
-
-            case 'CHARGE':
-                this.isPlayerTurn = false;
-                this.logBox.log(`You lunge forward aggressively to close the distance!`);
-
-                const targetGridX = this.enemyEntity.gridX - 1;
-
-                this.playerEntity.animateToGrid(targetGridX, 300, () => this.updateDynamicCamera(0))
-                    .then(() => {
-                        damage = Math.floor(Math.random() * 4) + 3;
-                        this.logBox.log(`Charge hits! You slammed into them for ${damage} damage!`);
-                        this.applyDamageToEnemy(damage);
-                    });
-                break;
-
-            case 'REST':
-                this.isPlayerTurn = false;
-                this.logBox.log(`You drop into a defensive stance to catch your breath and recover focus.`);
-                this.time.delayedCall(1000, () => this.processEnemyTurn());
-                break;
-
-            case 'TAUNT':
-                this.isPlayerTurn = false;
-                this.logBox.log(`You mock them openly! "Hey ${this.enemyIdentity.name}, my grandmother hits harder than that!"`);
-                this.time.delayedCall(1000, () => this.processEnemyTurn());
-                break;
+    // 2. Logic Check
+    if (['QUICK', 'NORMAL', 'POWER', 'CHARGE'].includes(type)) {
+        if (distanceBetween > 1 && type !== 'CHARGE') {
+             this.logBox.log(`Enemy is too far away!`);
+             return;
         }
+        
+        // Check Stamina
+        if (currentStamina < (costs[type as keyof typeof costs] || 0)) {
+            this.logBox.log(`Not enough stamina to perform ${type}!`);
+            return;
+        }
+        
+        // Deduct Stamina (Update UI + State)
+        this.playerState.secondaryStats.stamina.current -= (costs[type as keyof typeof costs] || 0);
+        this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
+    }
+
+    // 3. Execution
+    this.isPlayerTurn = false;
+    
+    if (type === 'CHARGE') {
+         this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
+            .then(() => {
+                const dmg = this.calculateDamage('NORMAL'); // Charge counts as a normal hit
+                this.logBox.log(`Charged! Dealt ${dmg} damage.`);
+                this.applyDamageToEnemy(dmg);
+            });
+    } else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
+        const dmg = this.calculateDamage(type as any);
+        this.logBox.log(`You used ${type}! Dealt ${dmg} damage.`);
+        this.applyDamageToEnemy(dmg);
+    } else if (type === 'REST') {
+        this.logBox.log(`You rest and recover stamina.`);
+        this.playerState.secondaryStats.stamina.current = Math.min(
+            this.playerState.secondaryStats.stamina.max, 
+            this.playerState.secondaryStats.stamina.current + 20
+        );
+        this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
+        this.time.delayedCall(1000, () => this.processEnemyTurn());
+    } else if (type === 'TAUNT') {
+        // ... (Keep your existing taunt logic)
+        this.time.delayedCall(1000, () => this.processEnemyTurn());
+    }
+}
+
+    /**
+ * Calculates damage based on player stats.
+ * Formula: BaseValue + (Strength * 0.3) + Random Variance
+ */
+    private calculateDamage(type: 'QUICK' | 'NORMAL' | 'POWER'): number {
+        const strength = this.playerState.stats.strength;
+
+        // Define base power for each attack type
+        const baseDamageMap = {
+            'QUICK': 2,
+            'NORMAL': 5,
+            'POWER': 10
+        };
+
+        const base = baseDamageMap[type];
+        const scaling = Math.floor(strength * 0.3); // 30% of strength adds to damage
+        const variance = Math.floor(Math.random() * 3); // A little randomness for feel
+
+        return base + scaling + variance;
     }
 
     private applyDamageToEnemy(damage: number) {
@@ -312,12 +320,12 @@ export default class CombatScene extends Phaser.Scene {
 
     private createPlayerUI() {
         const startX = 40; const startY = 40; const gap = 24;
-        const nameText = this.add.text(startX, startY, this.playerState.name.toUpperCase(), { 
-            fontFamily: 'sans-serif', fontSize: '22px', color: '#ffffff', fontStyle: 'bold' 
+        const nameText = this.add.text(startX, startY, this.playerState.name.toUpperCase(), {
+            fontFamily: 'sans-serif', fontSize: '22px', color: '#ffffff', fontStyle: 'bold'
         });
 
-        const hp = this.playerState.secondaryStats.hp; 
-        const mp = this.playerState.secondaryStats.mp; 
+        const hp = this.playerState.secondaryStats.hp;
+        const mp = this.playerState.secondaryStats.mp;
         const stam = this.playerState.secondaryStats.stamina;
 
         this.playerHpBar = new StatBar(this, startX, startY + 35, this.barWidth, this.barHeight, 0xef4444);
@@ -333,8 +341,8 @@ export default class CombatScene extends Phaser.Scene {
 
     private createEnemyUI(screenWidth: number) {
         this.enemyUIX = screenWidth - this.barWidth - 40; this.enemyUIY = 40; const gap = 24;
-        const nameText = this.add.text(screenWidth - 40, this.enemyUIY, this.enemyIdentity.name, { 
-            fontFamily: 'sans-serif', fontSize: '22px', color: '#ffb0b0', fontStyle: 'bold' 
+        const nameText = this.add.text(screenWidth - 40, this.enemyUIY, this.enemyIdentity.name, {
+            fontFamily: 'sans-serif', fontSize: '22px', color: '#ffb0b0', fontStyle: 'bold'
         }).setOrigin(1, 0);
 
         const baseMp = (this.enemyTemplate as any).baseMp || 0;
@@ -350,5 +358,5 @@ export default class CombatScene extends Phaser.Scene {
         this.uiContainer.add([nameText, this.enemyHpBar, this.enemyMpBar, this.enemyStaminaBar]);
     }
 
-    
+
 }
