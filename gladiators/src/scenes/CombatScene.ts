@@ -23,6 +23,7 @@ export default class CombatScene extends Phaser.Scene {
     private currentEnemyStamina = 0;
 
     private logBox!: LogBox;
+    private actionMenu!: ActionMenu;
 
     private playerHpBar!: StatBar;
     private playerMpBar!: StatBar;
@@ -37,16 +38,15 @@ export default class CombatScene extends Phaser.Scene {
     private barWidth = 200;
     private barHeight = 16;
 
-    // Upgraded from loose primitives to unified combat entity managers
     private playerEntity!: BattleEntity;
     private enemyEntity!: BattleEntity;
 
-    // Configuration
     private readonly GRID_SIZE = 80;
     private worldCenterX = 0;
-    private isPlayerTurn = true;
+    
+    // Upgraded to a 3-state system to prevent click-spamming during animations
+    private turnState: 'PLAYER' | 'ENEMY' | 'LOCKED' = 'PLAYER';
 
-    // UI Camera & Container properties
     private uiCamera!: Phaser.Cameras.Scene2D.Camera;
     private uiContainer!: Phaser.GameObjects.Container;
 
@@ -69,6 +69,7 @@ export default class CombatScene extends Phaser.Scene {
         this.enemyIdentity = generateEnemyIdentity(this.enemyTemplate);
 
         this.currentEnemyHp = this.enemyTemplate.baseHp;
+        // Safely fallback if baseMp doesn't exist on the type yet
         this.currentEnemyMp = (this.enemyTemplate as any).baseMp || 0;
         this.currentEnemyStamina = this.enemyTemplate.baseStamina;
     }
@@ -81,26 +82,18 @@ export default class CombatScene extends Phaser.Scene {
 
         // --- 1. WORLD SETUP ---
         this.cameras.main.fadeIn(300, 0, 0, 0);
-
         const bgTexture = this.textures.get('forest_bg');
-        const nativeHeight = bgTexture.getSourceImage().height;
         const bgScale = 1.35;
-        const displayHeight = nativeHeight * bgScale;
+        const bg = this.add.tileSprite(this.worldCenterX, height * 0.43, 4000, bgTexture.getSourceImage().height * bgScale, 'forest_bg');
+        bg.setTileScale(bgScale, bgScale).setDepth(-10).setScrollFactor(0.5);
 
-        const bg = this.add.tileSprite(this.worldCenterX, height * 0.43, 4000, displayHeight, 'forest_bg');
-        bg.setTileScale(bgScale, bgScale);
-        bg.setDepth(-10);
-        bg.setScrollFactor(0.5);
-
-        // --- 2. ENTITY SPAWNING ---
-        // Spawn Player Entity
+        // --- 2. ENTITIES ---
         this.playerEntity = new BattleEntity(this, -3, height * 0.52, this.worldCenterX, this.GRID_SIZE, {
             skinColor: this.playerState.appearance.skinColor,
             expression: this.playerState.appearance.expression,
             scale: 1.4
         });
 
-        // Spawn Enemy Entity as a real stickman using random generated features!
         this.enemyEntity = new BattleEntity(this, 3, height * 0.52, this.worldCenterX, this.GRID_SIZE, {
             skinColor: this.enemyIdentity.skinColor,
             expression: this.enemyIdentity.expression,
@@ -121,199 +114,249 @@ export default class CombatScene extends Phaser.Scene {
 
         // --- 4. ACTION MENU SETUP ---
         const buttonActions: ActionItem[] = [
-            { label: '⬅️ LEFT', description: 'Dash left to increase distance.', isAttack: false, action: () => this.movePlayer('LEFT') },
-            { label: 'RIGHT ➡️', description: 'Dash right to close the distance.', isAttack: false, action: () => this.movePlayer('RIGHT') },
-            { label: '⚡ QUICK', description: 'A fast, low-damage strike. Requires close range.', isAttack: true, action: () => this.executeAction('QUICK') },
-            { label: '⚔️ NORMAL', description: 'A standard melee attack. Requires close range.', isAttack: true, action: () => this.executeAction('NORMAL') },
-            { label: '💥 POWER', description: 'A heavy, high-damage blow. Requires close range.', isAttack: true, action: () => this.executeAction('POWER') },
-            { label: '🏃 CHARGE', description: 'Lunge forward and strike immediately!', isAttack: true, action: () => this.executeAction('CHARGE') },
-            { label: '💤 REST', description: 'Defend and catch your breath to restore stamina.', isAttack: false, action: () => this.executeAction('REST') },
-            { label: '🗣️ TAUNT', description: 'Mock the enemy. May alter their behavior.', isAttack: false, action: () => this.executeAction('TAUNT') }
+            { label: '⬅️ LEFT', description: 'Dash left.', isAttack: false, action: () => this.movePlayer('LEFT') },
+            { label: 'RIGHT ➡️', description: 'Dash right.', isAttack: false, action: () => this.movePlayer('RIGHT') },
+            { label: '⚡ QUICK', description: 'Fast, low-damage strike.', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('QUICK') },
+            { label: '⚔️ NORMAL', description: 'Standard melee attack.', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('NORMAL') },
+            { label: '💥 POWER', description: 'Heavy, high-damage blow.', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('POWER') },
+            { label: '🏃 CHARGE', description: 'Lunge and strike!', isAttack: true, isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
+            { label: '💤 REST', description: 'Recover stamina.', isAttack: false, action: () => this.executeAction('REST') },
+            { label: '🗣️ TAUNT', description: 'Mock the enemy.', isAttack: false, action: () => this.executeAction('TAUNT') }
         ];
 
-        // Instantiate the ActionMenu and pass the tooltip callbacks directly to the LogBox
-        const actionMenu = new ActionMenu(
-            this,
-            this.worldCenterX,
-            height - 200,
-            buttonActions,
+        this.actionMenu = new ActionMenu(
+            this, this.worldCenterX, height - 200, buttonActions,
             (desc) => this.logBox.showTooltip(desc),
             () => this.logBox.clearTooltip()
         );
+        this.uiContainer.add(this.actionMenu);
 
-        // Add it to the UI camera container so it doesn't move when zooming
-        this.uiContainer.add(actionMenu);
-
-        // --- 5. DUAL CAMERA SETUP ---
+        // --- 5. CAMERA SETUP ---
         this.uiCamera = this.cameras.add(0, 0, width, height);
         this.cameras.main.ignore(this.uiContainer);
 
-        const allSceneObjects = this.children.list;
-        for (const obj of allSceneObjects) {
-            if (obj !== this.uiContainer) {
-                this.uiCamera.ignore(obj);
-            }
+        for (const obj of this.children.list) {
+            if (obj !== this.uiContainer) this.uiCamera.ignore(obj);
         }
 
         this.updateDynamicCamera(0);
+        this.startPlayerTurn(); // Initialize turn state properly
+    }
+
+    // --- HELPERS & MATH ---
+    private getDistance(): number {
+        return Math.abs(this.enemyEntity.gridX - this.playerEntity.gridX);
     }
 
     private updateDynamicCamera(duration: number = 400) {
         if (!this.playerEntity || !this.enemyEntity) return;
-
-        const pX = this.playerEntity.x;
-        const eX = this.enemyEntity.x;
-        const midpointX = (pX + eX) / 2;
-        const distance = Math.abs(pX - eX);
-        const visualPadding = 450;
-        const targetZoom = Phaser.Math.Clamp(this.scale.width / (distance + visualPadding), 0.6, 1.3);
+        const midpointX = (this.playerEntity.x + this.enemyEntity.x) / 2;
+        const targetZoom = Phaser.Math.Clamp(this.scale.width / (Math.abs(this.playerEntity.x - this.enemyEntity.x) + 450), 0.6, 1.3);
 
         this.cameras.main.pan(midpointX, this.scale.height * 0.5, duration, 'Sine.easeInOut');
         this.cameras.main.zoomTo(targetZoom, duration, 'Sine.easeInOut');
     }
 
-    private getPlayerMovementRange(): number {
-        const dexterity = this.playerState.stats.dexterity;
-        return 1 + Math.floor(dexterity / 20);
-    }
+    private showFloatingText(x: number, y: number, text: string, color: string) {
+        const floatText = this.add.text(x, y - 60, text, {
+            fontFamily: 'sans-serif', fontSize: '26px', color: color, fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0.5);
+        
+        this.uiCamera.ignore(floatText); // Keep in world space to zoom properly
 
-    private movePlayer(direction: 'LEFT' | 'RIGHT') {
-        if (!this.isPlayerTurn) return;
-        this.isPlayerTurn = false;
-
-        const distance = this.getPlayerMovementRange();
-        const moveAmount = direction === 'LEFT' ? -distance : distance;
-
-        const intendedGridX = this.playerEntity.gridX + moveAmount;
-        // Keep player at least one tile away from enemy boundary
-        const finalGridX = intendedGridX >= this.enemyEntity.gridX ? this.enemyEntity.gridX - 1 : intendedGridX;
-
-        this.logBox.log(`You dashed to the ${direction.toLowerCase()}.`);
-
-        this.playerEntity.animateToGrid(finalGridX, 400, () => this.updateDynamicCamera(0))
-            .then(() => {
-                this.time.delayedCall(300, () => this.processEnemyTurn());
-            });
-    }
-
-    private processEnemyTurn() {
-        if (this.currentEnemyHp <= 0) return;
-
-        this.logBox.log(`${this.enemyIdentity.name} is making a move...`);
-
-        this.time.delayedCall(800, () => {
-            const distanceBetween = Math.abs(this.enemyEntity.gridX - this.playerEntity.gridX);
-
-            if (distanceBetween > 1) {
-                const finalGridX = this.enemyEntity.gridX - 1;
-                this.logBox.log(`${this.enemyIdentity.name} advances towards you!`);
-
-                this.enemyEntity.animateToGrid(finalGridX, 400, () => this.updateDynamicCamera(0))
-                    .then(() => this.endEnemyTurn());
-            } else {
-                this.logBox.log(`${this.enemyIdentity.name} strikes you!`);
-                this.playerEntity.playDamageFlash()
-                    .then(() => this.endEnemyTurn());
-            }
+        this.tweens.add({
+            targets: floatText, y: y - 120, alpha: 0, duration: 1200, ease: 'Cubic.easeOut',
+            onComplete: () => floatText.destroy()
         });
     }
 
-    private endEnemyTurn() {
-        this.isPlayerTurn = true;
-        this.logBox.log(`It is your turn.`);
-    }
+    // Add these to CombatScene.ts
 
-    private executeAction(type: 'QUICK' | 'NORMAL' | 'POWER' | 'CHARGE' | 'REST' | 'TAUNT') {
-    if (!this.isPlayerTurn) return;
+// Replace your existing updateActionLabels method with this:
+private updateActionLabels() {
+    const prec = this.playerState.stats.precision;
+    const guard = this.enemyTemplate.stats.guard;
+    const base = 80 + (prec - guard);
 
-    const distanceBetween = Math.abs(this.enemyEntity.gridX - this.playerEntity.gridX);
-    
-    // 1. Stamina Cost Definition
-    const costs = { 'QUICK': 5, 'NORMAL': 10, 'POWER': 20, 'CHARGE': 15 };
-    const currentStamina = this.playerState.secondaryStats.stamina.current;
+    // Helper to calculate clamp
+    const getChance = (mod: number) => Phaser.Math.Clamp(base + mod, 5, 95);
 
-    // 2. Logic Check
-    if (['QUICK', 'NORMAL', 'POWER', 'CHARGE'].includes(type)) {
-        if (distanceBetween > 1 && type !== 'CHARGE') {
-             this.logBox.log(`Enemy is too far away!`);
-             return;
-        }
-        
-        // Check Stamina
-        if (currentStamina < (costs[type as keyof typeof costs] || 0)) {
-            this.logBox.log(`Not enough stamina to perform ${type}!`);
-            return;
-        }
-        
-        // Deduct Stamina (Update UI + State)
-        this.playerState.secondaryStats.stamina.current -= (costs[type as keyof typeof costs] || 0);
-        this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
-    }
-
-    // 3. Execution
-    this.isPlayerTurn = false;
-    
-    if (type === 'CHARGE') {
-         this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
-            .then(() => {
-                const dmg = this.calculateDamage('NORMAL'); // Charge counts as a normal hit
-                this.logBox.log(`Charged! Dealt ${dmg} damage.`);
-                this.applyDamageToEnemy(dmg);
-            });
-    } else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
-        const dmg = this.calculateDamage(type as any);
-        this.logBox.log(`You used ${type}! Dealt ${dmg} damage.`);
-        this.applyDamageToEnemy(dmg);
-    } else if (type === 'REST') {
-        this.logBox.log(`You rest and recover stamina.`);
-        this.playerState.secondaryStats.stamina.current = Math.min(
-            this.playerState.secondaryStats.stamina.max, 
-            this.playerState.secondaryStats.stamina.current + 20
-        );
-        this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
-        this.time.delayedCall(1000, () => this.processEnemyTurn());
-    } else if (type === 'TAUNT') {
-        // ... (Keep your existing taunt logic)
-        this.time.delayedCall(1000, () => this.processEnemyTurn());
-    }
+    // Update labels specifically
+    this.actionMenu.updateLabel(2, `⚡ QUICK (${getChance(10)}%)`);
+    this.actionMenu.updateLabel(3, `⚔️ NORMAL (${getChance(0)}%)`);
+    this.actionMenu.updateLabel(4, `💥 POWER (${getChance(-20)}%)`);
+    this.actionMenu.updateLabel(5, `🏃 CHARGE (${getChance(0)}%)`);
 }
 
-    /**
- * Calculates damage based on player stats.
- * Formula: BaseValue + (Strength * 0.3) + Random Variance
- */
-    private calculateDamage(type: 'QUICK' | 'NORMAL' | 'POWER'): number {
-        const strength = this.playerState.stats.strength;
+// Ensure you update your internal combat logic to use these stats too!
+// Add this to your CombatScene class
+private calculateHit(attackerPrec: number, defenderGuard: number, type: 'QUICK' | 'NORMAL' | 'POWER' | 'CHARGE'): boolean {
+    // Define the risk/reward modifiers
+    const modifiers = {
+        'QUICK': 10,   // +10% Accuracy
+        'NORMAL': 0,   // Base
+        'POWER': -20,  // -20% Accuracy (Risky)
+        'CHARGE': 0    // Base (Same as normal)
+    };
 
-        // Define base power for each attack type
-        const baseDamageMap = {
-            'QUICK': 2,
-            'NORMAL': 5,
-            'POWER': 10
-        };
+    // Calculate base chance + modifiers
+    const baseChance = 80 + (attackerPrec - defenderGuard);
+    const hitChance = Phaser.Math.Clamp(baseChance + modifiers[type], 5, 95);
+    
+    return (Math.random() * 100) <= hitChance;
+}
 
-        const base = baseDamageMap[type];
-        const scaling = Math.floor(strength * 0.3); // 30% of strength adds to damage
-        const variance = Math.floor(Math.random() * 3); // A little randomness for feel
+    
 
-        return base + scaling + variance;
+    private calculateDamage(attackerStr: number, type: 'QUICK' | 'NORMAL' | 'POWER'): number {
+        const base = { 'QUICK': 2, 'NORMAL': 5, 'POWER': 10 }[type];
+        return base + Math.floor(attackerStr * 0.3) + Math.floor(Math.random() * 3);
+    }
+
+    // --- TURN MANAGEMENT ---
+    private startPlayerTurn() {
+    if (this.playerState.secondaryStats.stamina.current <= 0) {
+        this.turnState = 'LOCKED';
+        this.logBox.log(`You are exhausted! Forced to catch your breath.`);
+        this.time.delayedCall(1000, () => this.executeAction('REST', true));
+        return;
+    }
+
+    this.turnState = 'PLAYER';
+    this.logBox.log(`It is your turn.`);
+    
+    // Add these two lines:
+    if (this.actionMenu.refresh) this.actionMenu.refresh();
+    this.updateActionLabels(); 
+}
+
+    private movePlayer(direction: 'LEFT' | 'RIGHT') {
+        if (this.turnState !== 'PLAYER') return;
+        this.turnState = 'LOCKED';
+
+        const distance = 1 + Math.floor(this.playerState.stats.dexterity / 20);
+        const intendedGridX = this.playerEntity.gridX + (direction === 'LEFT' ? -distance : distance);
+        const finalGridX = intendedGridX >= this.enemyEntity.gridX ? this.enemyEntity.gridX - 1 : intendedGridX;
+
+        this.logBox.log(`You dashed to the ${direction.toLowerCase()}.`);
+        this.playerEntity.animateToGrid(finalGridX, 400, () => this.updateDynamicCamera(0))
+            .then(() => this.time.delayedCall(300, () => this.processEnemyTurn()));
+    }
+
+    private executeAction(type: 'QUICK' | 'NORMAL' | 'POWER' | 'CHARGE' | 'REST' | 'TAUNT', force: boolean = false) {
+        if (this.turnState !== 'PLAYER' && !force) return;
+        this.turnState = 'LOCKED';
+
+        const costs = { 'QUICK': 5, 'NORMAL': 10, 'POWER': 20, 'CHARGE': 15, 'REST': 0, 'TAUNT': 0 };
+        
+        // Stamina Deduction
+        if (type !== 'REST' && type !== 'TAUNT') {
+            this.playerState.secondaryStats.stamina.current -= costs[type];
+            this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
+        }
+        
+        if (type === 'CHARGE') {
+             this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
+                .then(() => {
+                    const dmg = this.calculateDamage(this.playerState.stats.strength, 'NORMAL');
+                    this.applyDamageToEnemy(dmg);
+                });
+        } // Inside executeAction(), find the 'QUICK', 'NORMAL', 'POWER' section and update it:
+else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
+    // Pass the 'type' string directly to calculateHit
+    const hits = this.calculateHit(
+        this.playerState.stats.precision, 
+        this.enemyTemplate.stats.guard, 
+        type as any
+    );
+
+    if (hits) {
+        const dmg = this.calculateDamage(this.playerState.stats.strength, type as any);
+        this.applyDamageToEnemy(dmg);
+    } else {
+        this.logBox.log(`You missed!`);
+        this.showFloatingText(this.enemyEntity.x, this.enemyEntity.y, 'MISS', '#cbd5e1');
+        this.time.delayedCall(1000, () => this.processEnemyTurn());
+    }
+} else if (type === 'REST') {
+            this.logBox.log(`You rest and recover stamina.`);
+            this.playerState.secondaryStats.stamina.current = Math.min(this.playerState.secondaryStats.stamina.max, this.playerState.secondaryStats.stamina.current + 20);
+            this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
+            this.time.delayedCall(1000, () => this.processEnemyTurn());
+        }
     }
 
     private applyDamageToEnemy(damage: number) {
         this.currentEnemyHp = Math.max(0, this.currentEnemyHp - damage);
         this.enemyHpBar.update(this.currentEnemyHp, this.enemyTemplate.baseHp);
+        
+        this.logBox.log(`Dealt ${damage} damage!`);
+        this.showFloatingText(this.enemyEntity.x, this.enemyEntity.y, `-${damage}`, '#ef4444');
 
-        // Run the damage visual feedback animation out of our generic wrapper class
         this.enemyEntity.playDamageFlash().then(() => {
             if (this.currentEnemyHp <= 0) {
                 this.logBox.log(`Victory! Leaving arena...`);
+                // TODO: Sync player Zustand store here! (e.g., usePlayerStore.getState().saveCombatStats(this.playerState))
                 this.time.delayedCall(1500, () => {
-                    this.cameras.main.fadeOut(250, 0, 0, 0);
-                    this.uiCamera.fadeOut(250, 0, 0, 0);
+                    this.cameras.main.fadeOut(250);
+                    this.uiCamera.fadeOut(250);
                     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('OpenMap'));
                 });
             } else {
                 this.time.delayedCall(500, () => this.processEnemyTurn());
+            }
+        });
+    }
+
+    private processEnemyTurn() {
+        if (this.currentEnemyHp <= 0) return;
+        this.turnState = 'ENEMY';
+
+        if (this.currentEnemyStamina <= 0) {
+            this.logBox.log(`${this.enemyIdentity.name} is exhausted and forced to rest!`);
+            this.currentEnemyStamina += 20;
+            this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
+            this.time.delayedCall(1000, () => this.startPlayerTurn());
+            return;
+        }
+
+        this.logBox.log(`${this.enemyIdentity.name} makes a move...`);
+
+        this.time.delayedCall(800, () => {
+            if (this.getDistance() > 1) {
+                this.enemyEntity.animateToGrid(this.enemyEntity.gridX - 1, 400, () => this.updateDynamicCamera(0))
+                    .then(() => this.startPlayerTurn());
+            } else {
+                this.currentEnemyStamina -= 10;
+                this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
+
+                const hits = this.calculateHit(this.enemyTemplate.stats.guard, this.playerState.stats.precision);
+                if (hits) {
+                    const dmg = this.calculateDamage(this.enemyTemplate.stats.strength, 'NORMAL'); 
+                    this.applyDamageToPlayer(dmg);
+                } else {
+                    this.logBox.log(`${this.enemyIdentity.name} swung, but you DODGED!`);
+                    this.showFloatingText(this.playerEntity.x, this.playerEntity.y, 'DODGE', '#3b82f6');
+                    this.time.delayedCall(1000, () => this.startPlayerTurn());
+                }
+            }
+        });
+    }
+
+    private applyDamageToPlayer(damage: number) {
+        this.playerState.secondaryStats.hp.current = Math.max(0, this.playerState.secondaryStats.hp.current - damage);
+        this.playerHpBar.update(this.playerState.secondaryStats.hp.current, this.playerState.secondaryStats.hp.max);
+        
+        this.logBox.log(`${this.enemyIdentity.name} hit you for ${damage} damage!`);
+        this.showFloatingText(this.playerEntity.x, this.playerEntity.y, `-${damage}`, '#ef4444');
+
+        this.playerEntity.playDamageFlash().then(() => {
+            if (this.playerState.secondaryStats.hp.current <= 0) {
+                this.turnState = 'LOCKED';
+                this.logBox.log(`YOU DIED! Game Over.`);
+                // TODO: Handle death state (wipe loot, return to main menu, reset Zustand state)
+            } else {
+                this.startPlayerTurn();
             }
         });
     }
@@ -357,6 +400,4 @@ export default class CombatScene extends Phaser.Scene {
 
         this.uiContainer.add([nameText, this.enemyHpBar, this.enemyMpBar, this.enemyStaminaBar]);
     }
-
-
 }
