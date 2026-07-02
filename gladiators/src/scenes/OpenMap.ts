@@ -1,10 +1,10 @@
 // src/scenes/OpenMap.ts
 import Phaser from 'phaser';
-import { SpireMapGenerator, type MapNode } from '../gameinit/MapGenerator';
+import { SpireMapGenerator } from '../gameinit/MapGenerator';
 import { SceneKeys } from '../data/SceneKeys';
 import { playerData, type PlayerData } from '../data/playerData';
+import { useMapStore } from '../data/MapData';
 
-// 🔥 FIX 1: Import your structured enemy pools and templates
 import { 
     BEGINNER_ENEMY_POOL, 
     STANDARD_ENEMY_POOL, 
@@ -29,40 +29,42 @@ export class OpenMap extends Phaser.Scene {
         } else {
             this.activePlayer = playerData;
         }
-
-        console.log("--- Player Data Successfully Received ---");
-        console.log(`Gladiator: ${this.activePlayer.name}`);
-        console.log(`Stamina Pool: ${this.activePlayer.secondaryStats.stamina.current}/${this.activePlayer.secondaryStats.stamina.max}`);
-        console.log(`Health Pool: ${this.activePlayer.secondaryStats.hp.current}/${this.activePlayer.secondaryStats.hp.max}`);
-        console.log(`Mana Pool: ${this.activePlayer.secondaryStats.mp.current}/${this.activePlayer.secondaryStats.mp.max}`);
     }
 
     create() {
-        const generator = new SpireMapGenerator();
-        const nodes = generator.generate();
-
         const PADDING_X = 140; 
         const PADDING_Y = 90;
         const JITTER = 20;
         const startX = 150;
         const startY = (this.scale.height / 2) - (3 * PADDING_Y);
 
-        // 1. Calculate visual positions
-        const visualNodes = nodes.map(node => ({
-            ...node,
-            vX: startX + (node.x * PADDING_X) + (Math.random() * JITTER),
-            vY: startY + (node.y * PADDING_Y) + (Math.random() * JITTER)
-        }));
+        // 🔥 FIX: Read directly from the store dynamically instead of caching a stale snapshot
+        if (useMapStore.getState().nodes.length === 0) {
+            const generator = new SpireMapGenerator();
+            const rawNodes = generator.generate();
+            
+            const nodesWithVisuals = rawNodes.map(node => ({
+                ...node,
+                vX: startX + (node.x * PADDING_X) + (Math.random() * JITTER),
+                vY: startY + (node.y * PADDING_Y) + (Math.random() * JITTER)
+            }));
+            
+            useMapStore.getState().setMapData(nodesWithVisuals);
+        }
 
-        // 2. Determine Map Width for Camera Bounds
+        // 🔥 FIX: Pull a completely fresh snapshot *after* any generation occurs!
+        const { nodes: visualNodes, currentNodeId } = useMapStore.getState();
+
+        // Determine Map Width for Camera Bounds
         const maxVX = Math.max(...visualNodes.map(n => n.vX)) + 200; 
         this.cameras.main.setBounds(0, 0, maxVX, this.scale.height);
 
-        // 3. Draw Lines
+        // Draw Lines
         const graphics = this.add.graphics();
         graphics.lineStyle(2, 0x444444, 0.8);
+        
         visualNodes.forEach(node => {
-            node.nextNodes.forEach(nextId => {
+            node.nextNodes.forEach((nextId: string) => {
                 const nextNode = visualNodes.find(n => n.id === nextId);
                 if (nextNode) {
                     graphics.moveTo(node.vX, node.vY);
@@ -72,21 +74,37 @@ export class OpenMap extends Phaser.Scene {
         });
         graphics.strokePath();
 
-        // 4. Draw Nodes
+        // Draw Nodes & Apply Path Locking
         visualNodes.forEach(node => {
-            const icon = this.add.text(node.vX, node.vY, node.type, { fontSize: '36px' })
-                .setOrigin(0.5)
-                .setInteractive({ useHandCursor: true });
+            const isSelectable = this.isNodeSelectable(node, visualNodes, currentNodeId);
+            const isCurrentNode = node.id === currentNodeId;
             
-            icon.on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: Phaser.Types.Input.EventData) => {
-                event.stopPropagation(); 
+            const iconAlpha = isSelectable || isCurrentNode ? 1 : 0.3;
+
+            const icon = this.add.text(node.vX, node.vY, String(node.type), { fontSize: '36px' })
+                .setOrigin(0.5)
+                .setAlpha(iconAlpha);
+            
+            if (isCurrentNode) {
+                this.add.text(node.vX, node.vY - 35, 'YOU', { 
+                    fontSize: '14px', fontStyle: 'bold', color: '#fbbf24', backgroundColor: '#000000', padding: {x: 4, y: 2}
+                }).setOrigin(0.5);
+            }
+
+            if (isSelectable) {
+                icon.setInteractive({ useHandCursor: true });
                 
-                // 🔥 FIX 2: Trigger our dynamic encounter router!
-                this.handleNodeEncounter(node);
-            });
+                icon.on('pointerover', () => icon.setScale(1.2));
+                icon.on('pointerout', () => icon.setScale(1.0));
+
+                icon.on('pointerdown', (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
+                    event.stopPropagation(); 
+                    this.handleNodeEncounter(node);
+                });
+            }
         });
 
-        // 5. CAMERA DRAG LOGIC
+        // CAMERA DRAG LOGIC
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
             this.isDragging = true;
             this.dragStartX = pointer.x;
@@ -113,16 +131,20 @@ export class OpenMap extends Phaser.Scene {
         }).setScrollFactor(0).setStroke('#22304c', 2);
     }
 
-    /**
-     * 🔥 FIX 3: Dynamic Node Router
-     * Determines what type of encounter pool to roll, selects the random enemy,
-     * and packages the payload into the CombatScene launch sequence.
-     */
-    private handleNodeEncounter(node: any) {
-        let selectedPool: EnemyTemplate[] = [];
+    private isNodeSelectable(node: any, allNodes: any[], currentNodeId: string | null): boolean {
+        if (!currentNodeId) {
+            return node.x === 0;
+        }
 
-        // Normalize your node type identifiers (Supports emojis or explicit text strings)
-        const nodeType = node.type.toUpperCase();
+        const currentNode = allNodes.find((n: any) => n.id === currentNodeId);
+        return currentNode ? currentNode.nextNodes.includes(node.id) : false;
+    }
+
+    private handleNodeEncounter(node: any) {
+        useMapStore.getState().setCurrentNode(node.id);
+
+        let selectedPool: EnemyTemplate[] = [];
+        const nodeType = String(node.type).toUpperCase();
 
         if (nodeType.includes('⚔️') || nodeType.includes('COMBAT') || nodeType.includes('BEGINNER')) {
             selectedPool = BEGINNER_ENEMY_POOL;
@@ -133,20 +155,14 @@ export class OpenMap extends Phaser.Scene {
         } else if (nodeType.includes('👑') || nodeType.includes('BOSS')) {
             selectedPool = BOSS_ENEMY_POOL;
         } else {
-            // Safe fallback just in case it's an unrecognized node type (like mystery events)
             console.warn(`Unmapped node type: ${node.type}. Defaulting to Beginner.`);
             selectedPool = BEGINNER_ENEMY_POOL;
         }
 
-        // Pull a random gladiator out of our chosen bracket pool
         const chosenEnemy = Phaser.Utils.Array.GetRandom(selectedPool);
-        console.log(`Encounter Generated! Battle: ${chosenEnemy.displayName}`);
 
-        // Lock camera and flash-fade out into battle arena
         this.cameras.main.fadeOut(250, 0, 0, 0);
         this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-            // Note: If you added a Combat registry value inside SceneKeys enum,
-            // replace 'CombatScene' below with SceneKeys.Combat!
             this.scene.start('CombatScene', {
                 character: this.activePlayer,
                 enemyTemplate: chosenEnemy

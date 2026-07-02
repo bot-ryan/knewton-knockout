@@ -330,7 +330,7 @@ else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
                 this.currentEnemyStamina -= 10;
                 this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
 
-                const hits = this.calculateHit(this.enemyTemplate.stats.guard, this.playerState.stats.precision);
+                const hits = this.calculateHit(this.enemyTemplate.stats.guard, this.playerState.stats.precision, 'NORMAL');
                 if (hits) {
                     const dmg = this.calculateDamage(this.enemyTemplate.stats.strength, 'NORMAL'); 
                     this.applyDamageToPlayer(dmg);
