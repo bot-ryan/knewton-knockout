@@ -46,6 +46,42 @@ export class ButtonCreator {
         return c;
     }
 
+    static makeStandardButton(
+        scene: Phaser.Scene, 
+        text: string, 
+        width: number, 
+        height: number, 
+        onClick: () => void
+    ) {
+        const bg = scene.add.rectangle(0, 0, width, height, 0x333333)
+            .setInteractive({ useHandCursor: true })
+            .setAlpha(0.9);
+            
+        const label = scene.add.text(0, 0, text, { 
+            fontSize: '20px', 
+            color: '#ffffff' 
+        }).setOrigin(0.5);
+
+        const container = scene.add.container(0, 0, [bg, label]);
+
+        // Standard Hover Logic
+        bg.on('pointerover', () => bg.setFillStyle(0x555555));
+        bg.on('pointerout', () => bg.setFillStyle(0x333333));
+        bg.on('pointerdown', onClick);
+
+        // Helper function encapsulated within the factory to handle state
+        const setEnabled = (enabled: boolean) => {
+            bg.setAlpha(enabled ? 0.9 : 0.4);
+            if (enabled) {
+                bg.setInteractive({ useHandCursor: true });
+            } else {
+                bg.disableInteractive();
+            }
+        };
+
+        return { container, setEnabled, bgWidth: width, bgHeight: height };
+    }
+
     static makeIconButton(scene: Phaser.Scene, x: number, y: number, glyph: string, onClick: () => void) {
         const bg = scene.add.rectangle(0, 0, 28, 28, 0x1c2740).setStrokeStyle(1, 0x2a3a5f).setOrigin(0).setInteractive().on('pointerdown', onClick);
         const txt = scene.add.text(14, 14, glyph, { fontSize: '16px' }).setOrigin(0.5);
