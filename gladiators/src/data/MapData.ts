@@ -1,5 +1,5 @@
 // src/data/MapData.ts
-import { createStore } from 'zustand/vanilla';
+import { createStore } from 'zustand/vanilla'
 
 export type NodeType = 'COMBAT' | 'ELITE' | 'BOSS' | 'REST';
 

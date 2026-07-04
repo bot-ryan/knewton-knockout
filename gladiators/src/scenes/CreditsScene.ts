@@ -64,6 +64,7 @@ export default class CreditsScene extends Phaser.Scene {
   
   private nextBtn!: UIButton;
   private prevBtn!: UIButton;
+  private backBtn! : UIButton;
 
   // layout
   private readonly autoDelay = 5000;         // ms
@@ -84,6 +85,8 @@ export default class CreditsScene extends Phaser.Scene {
   }
 
   async create() {
+    this.transitioning = false;
+    this.current = 0;
     const { width, height } = this.scale;
 
     this.cameras.main.setBackgroundColor(0x0e1a2b);
@@ -186,6 +189,10 @@ export default class CreditsScene extends Phaser.Scene {
     this.nextBtn = ButtonCreator.makeStandardButton(this, "Next >", 100, 50, () => {
         this.nextSlide(true);
     });
+
+   this.backBtn = ButtonCreator.makeStandardButton(this, "Back", 100, 50, () => {
+    this.returnToMenu();
+});
     
     this.positionButtons(width, height);
 
@@ -212,6 +219,10 @@ export default class CreditsScene extends Phaser.Scene {
   // ---------- Layout Helper ----------
   private positionButtons(width: number, height: number) {
       const margin = 22;
+      this.backBtn.container.setPosition(
+        margin + (this.backBtn.bgWidth / 2),
+        margin + (this.backBtn.bgHeight / 2)
+    );
       this.prevBtn.container.setPosition(
           margin + (this.prevBtn.bgWidth / 2), 
           height - margin - (this.prevBtn.bgHeight / 2)
