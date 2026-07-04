@@ -2,9 +2,10 @@
 import Phaser from "phaser";
 import { loadGameFonts } from "./Fonts";
 import { preloadGamePhotos } from "./Photos";
+import { SceneKeys } from "../data/SceneKeys";
 
 export default class Init extends Phaser.Scene {
-  constructor() { super("Init"); }
+  constructor() { super(SceneKeys.Init); }
   
   preload() {
     // 1. Tell Phaser to queue the photos
@@ -25,6 +26,6 @@ export default class Init extends Phaser.Scene {
     } catch (err) {
       console.warn('[GameInit] Font load failed, continuing anyway', err);
     }
-    this.scene.start("MainMenu");
+    this.scene.start(SceneKeys.MainMenu);
   }
 }

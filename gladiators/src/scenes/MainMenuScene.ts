@@ -1,6 +1,7 @@
 // src/scenes/MainMenuScene.ts
 import Phaser from "phaser";
 import { Fonts } from "../gameinit/Fonts";
+import {SceneKeys} from "../data/SceneKeys";
 
 // 🔥 FIX 1: Import the audio file directly so Vite processes it correctly
 import michaelBossSongUrl from "../assets/audio/MichaelBossSong.ogg";
@@ -18,7 +19,7 @@ export default class MainMenuScene extends Phaser.Scene {
   private selectedIndex = -1;
 
   constructor() {
-    super("MainMenu");
+    super(SceneKeys.MainMenu);
   }
 
   preload() {
@@ -61,19 +62,19 @@ export default class MainMenuScene extends Phaser.Scene {
       {
         label: "New Game",
         action: () => {
-          this.transitionTo("CharacterCreate");
+          this.transitionTo(SceneKeys.CharacterCreate);
         },
       },
       {
         label: "How to Play",
         action: () => {
-          this.transitionTo("HowToPlay");
+          this.transitionTo(SceneKeys.HowToPlay);
         },
       },
       {
         label: "Credits",
         action: () => {
-          this.transitionTo("Credits");
+          this.transitionTo(SceneKeys.Credits);
         },
       },
     ];
@@ -166,7 +167,7 @@ export default class MainMenuScene extends Phaser.Scene {
     });
   }
 
-  private transitionTo(sceneKey: string) {
+  private transitionTo(sceneKey: SceneKeys) {
     this.cameras.main.fadeOut(150, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.scene.start(sceneKey);
