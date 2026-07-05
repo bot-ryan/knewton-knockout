@@ -2,9 +2,9 @@
 import Phaser from "phaser";
 import { Fonts } from "../gameinit/Fonts";
 import {SceneKeys} from "../data/SceneKeys";
+import { AudioKeys } from "../gameinit/Audio";
 
-// 🔥 FIX 1: Import the audio file directly so Vite processes it correctly
-import michaelBossSongUrl from "../assets/audio/MichaelBossSong.ogg";
+
 
 type MenuEntry = {
   label: string;
@@ -22,29 +22,17 @@ export default class MainMenuScene extends Phaser.Scene {
     super(SceneKeys.MainMenu);
   }
 
-  preload() {
-    // 🔥 FIX 2: Pass the resolved Vite URL variable instead of a string path
-    this.load.audio('test', michaelBossSongUrl);
-  }
+ 
 
   async create() {
     const { width, height } = this.scale;
 
+    this.sound.play(AudioKeys.MichaelBossSong, { loop: true, volume: 0.5 }); //placeholder for now
     await document.fonts.ready; // Ensure fonts are loaded before creating text objects
 
     // Background
     this.cameras.main.setBackgroundColor(0x101322);
     this.cameras.main.fadeIn(200, 0, 0, 0);
-
-    // 🔥 FIX 3: Defensive audio playback check.
-    // We check if the audio actually exists in Phaser's cache before playing it.
-    // This ensures that even if an audio asset fails to load, your UI elements will STILL render!
-    if (this.cache.audio.exists('test') && !this.sound.get('test')) {
-      this.sound.play('test', {
-        loop: true,
-        volume: 0.4
-      });
-    }
 
     // Title
     this.titleText = this.add

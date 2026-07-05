@@ -2,6 +2,7 @@
 import Phaser from "phaser";
 import { loadGameFonts } from "./Fonts";
 import { preloadGamePhotos } from "./Photos";
+import { preloadGameAudio } from "./Audio";
 import { SceneKeys } from "../data/SceneKeys";
 
 export default class Init extends Phaser.Scene {
@@ -10,6 +11,7 @@ export default class Init extends Phaser.Scene {
   preload() {
     // 1. Tell Phaser to queue the photos
     preloadGamePhotos(this);
+    preloadGameAudio(this);
     
     // Add the 'src/' prefix to match your folder structure exactly
   this.load.text('bannedWords', 'src/assets/banned_words.txt');
