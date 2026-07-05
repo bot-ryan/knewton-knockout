@@ -8,8 +8,8 @@ import { Stickman } from '../components/Stickman';
 import { GameConfig } from '../data/GameConfig';
 import { SceneKeys } from '../data/SceneKeys';
 
-// Import the types and the setter function from your new file
-import { type StatKey, type Expression, setPlayerData } from '../data/playerData';
+// 🔥 Swapped to use your new Zustand store!
+import { type StatKey, type Expression, usePlayerStore } from '../data/PlayerData';
 
 export default class CharacterCreateScene extends Phaser.Scene {
     constructor() { super(SceneKeys.CharacterCreate); }
@@ -227,7 +227,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
                 }
             };
 
-            setPlayerData(characterData); // Save to global player data
+            usePlayerStore.getState().setPlayerData(characterData); 
 
             // Navigate to OpenMap with character data
             this.scene.start(SceneKeys.OpenMap, { character: characterData });

@@ -1,6 +1,6 @@
 // src/scenes/CombatScene.ts
 import Phaser from 'phaser';
-import { type PlayerData } from '../data/playerData';
+import { type PlayerData } from '../data/PlayerData';
 import { type EnemyTemplate } from '../data/Enemy/EnemyArchetypes';
 import { generateEnemyIdentity, type EnemyIdentity } from '../data/Enemy/EnemyIdentity';
 import { LogBox } from '../components/ui/LogBox';

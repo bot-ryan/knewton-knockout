@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { SpireMapGenerator } from '../gameinit/MapGenerator';
 import { SceneKeys } from '../data/SceneKeys';
-import { playerData, type PlayerData } from '../data/playerData';
+import { usePlayerStore, type PlayerData } from '../data/PlayerData';
 import { useMapStore } from '../data/MapData';
 
 import { 
@@ -23,12 +23,10 @@ export class OpenMap extends Phaser.Scene {
         super(SceneKeys.OpenMap);
     }
 
-    init(data: { character?: PlayerData }) {
-        if (data && data.character) {
-            this.activePlayer = data.character;
-        } else {
-            this.activePlayer = playerData;
-        }
+    init() {
+        // 🔥 FIX 2: Zustand makes scene-to-scene data passing obsolete!
+        // We just grab the freshest snapshot of the player directly from the store.
+        this.activePlayer = usePlayerStore.getState() as PlayerData;
     }
 
     create() {
@@ -38,7 +36,6 @@ export class OpenMap extends Phaser.Scene {
         const startX = 150;
         const startY = (this.scale.height / 2) - (3 * PADDING_Y);
 
-        // 🔥 FIX: Read directly from the store dynamically instead of caching a stale snapshot
         if (useMapStore.getState().nodes.length === 0) {
             const generator = new SpireMapGenerator();
             const rawNodes = generator.generate();
@@ -52,7 +49,6 @@ export class OpenMap extends Phaser.Scene {
             useMapStore.getState().setMapData(nodesWithVisuals);
         }
 
-        // 🔥 FIX: Pull a completely fresh snapshot *after* any generation occurs!
         const { nodes: visualNodes, currentNodeId } = useMapStore.getState();
 
         // Determine Map Width for Camera Bounds
@@ -163,6 +159,8 @@ export class OpenMap extends Phaser.Scene {
 
         this.cameras.main.fadeOut(250, 0, 0, 0);
         this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+            // 🔥 Note: We are still passing character data here so we don't break your CombatScene,
+            // but eventually, CombatScene should pull from Zustand too!
             this.scene.start('CombatScene', {
                 character: this.activePlayer,
                 enemyTemplate: chosenEnemy

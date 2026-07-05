@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { type Expression } from '../data/playerData';
+import { type Expression } from '../data/PlayerData';
 
 export class Stickman extends Phaser.GameObjects.Container {
     private bodyGraphics: Phaser.GameObjects.Graphics;
