@@ -1,4 +1,6 @@
 // src/scenes/CreditsScene.ts
+
+//BUG MUSIC ADDS ON INSTEAD OF CONTINUING WHEN BACK TO MAIN MENU
 import Phaser from "phaser";
 import { Fonts } from "../gameinit/Fonts";
 import { ButtonCreator } from "../components/ButtonCreator";
@@ -38,7 +40,7 @@ const CREDIT_SLIDES: CreditSlide[] = [
   {
     name: "Noel",
     role: "Music & SFX",
-    blurb: "Score, ambience, and arena sounds.",
+    blurb: "Score, ambience, and arena sounds.\n In this picture, he tore his pants.\n WE MISS YOU NAQEEB!",
     imageKey: "composer",
     imageURL: "/assets/credits/composer.jpg",
   },
