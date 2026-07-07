@@ -44,7 +44,7 @@ export default class CombatScene extends Phaser.Scene {
 
     private readonly GRID_SIZE = 80;
     private worldCenterX = 0;
-    
+
     // Upgraded to a 3-state system to prevent click-spamming during animations
     private turnState: 'PLAYER' | 'ENEMY' | 'LOCKED' = 'PLAYER';
 
@@ -162,7 +162,7 @@ export default class CombatScene extends Phaser.Scene {
         const floatText = this.add.text(x, y - 60, text, {
             fontFamily: 'sans-serif', fontSize: '26px', color: color, fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
         }).setOrigin(0.5);
-        
+
         this.uiCamera.ignore(floatText); // Keep in world space to zoom properly
 
         this.tweens.add({
@@ -173,44 +173,36 @@ export default class CombatScene extends Phaser.Scene {
 
     // Add these to CombatScene.ts
 
-// Replace your existing updateActionLabels method with this:
-private updateActionLabels() {
-    const prec = this.playerState.stats.precision;
-    const guard = this.enemyTemplate.stats.guard;
-    const base = 80 + (prec - guard);
+    // Replace your existing updateActionLabels method with this:
+    private updateActionLabels() {
+        const prec = this.playerState.stats.precision;
+        const guard = this.enemyTemplate.stats.guard;
 
-    // Helper to calculate clamp
-    const getChance = (mod: number) => Phaser.Math.Clamp(base + mod, 5, 95);
-
-    // Update labels specifically
-    this.actionMenu.updateLabel(2, `⚡ QUICK (${getChance(10)}%)`);
-    this.actionMenu.updateLabel(3, `⚔️ NORMAL (${getChance(0)}%)`);
-    this.actionMenu.updateLabel(4, `💥 POWER (${getChance(-20)}%)`);
-    this.actionMenu.updateLabel(5, `🏃 CHARGE (${getChance(0)}%)`);
-}
+        // Update labels specifically
+        this.actionMenu.updateLabel(2, `⚡ QUICK (${CombatEngine.getHitChance(prec, guard, 'QUICK')}%)`);
+        this.actionMenu.updateLabel(3, `⚔️ NORMAL (${CombatEngine.getHitChance(prec, guard, 'NORMAL')}%)`);
+        this.actionMenu.updateLabel(4, `💥 POWER (${CombatEngine.getHitChance(prec, guard, 'POWER')}%)`);
+        this.actionMenu.updateLabel(5, `🏃 CHARGE (${CombatEngine.getHitChance(prec, guard, 'CHARGE')}%)`);
+    }
 
 
-
-    
-
-   
 
     // --- TURN MANAGEMENT ---
     private startPlayerTurn() {
-    if (this.playerState.secondaryStats.stamina.current <= 0) {
-        this.turnState = 'LOCKED';
-        this.logBox.log(`You are exhausted! Forced to catch your breath.`);
-        this.time.delayedCall(1000, () => this.executeAction('REST', true));
-        return;
-    }
+        if (this.playerState.secondaryStats.stamina.current <= 0) {
+            this.turnState = 'LOCKED';
+            this.logBox.log(`You are exhausted! Forced to catch your breath.`);
+            this.time.delayedCall(1000, () => this.executeAction('REST', true));
+            return;
+        }
 
-    this.turnState = 'PLAYER';
-    this.logBox.log(`It is your turn.`);
-    
-    // Add these two lines:
-    if (this.actionMenu.refresh) this.actionMenu.refresh();
-    this.updateActionLabels(); 
-}
+        this.turnState = 'PLAYER';
+        this.logBox.log(`It is your turn.`);
+
+        // Add these two lines:
+        if (this.actionMenu.refresh) this.actionMenu.refresh();
+        this.updateActionLabels();
+    }
 
     private movePlayer(direction: 'LEFT' | 'RIGHT') {
         if (this.turnState !== 'PLAYER') return;
@@ -225,44 +217,55 @@ private updateActionLabels() {
             .then(() => this.time.delayedCall(300, () => this.processEnemyTurn()));
     }
 
-    private executeAction(type: 'QUICK' | 'NORMAL' | 'POWER' | 'CHARGE' | 'REST' | 'TAUNT', force: boolean = false) {
+    private executeAction(type: string, force: boolean = false) {
         if (this.turnState !== 'PLAYER' && !force) return;
         this.turnState = 'LOCKED';
 
-        const costs = { 'QUICK': 5, 'NORMAL': 10, 'POWER': 20, 'CHARGE': 15, 'REST': 0, 'TAUNT': 0 };
-        
+        // 1. Get the exact cost as a single number
+        const cost = CombatEngine.getActionCost(type);
+
         // Stamina Deduction
         if (type !== 'REST' && type !== 'TAUNT') {
-            this.playerState.secondaryStats.stamina.current -= costs[type];
+            // 2. Subtract the cost directly
+            this.playerState.secondaryStats.stamina.current -= cost;
             this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
         }
-        
+
         if (type === 'CHARGE') {
-             this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
+            this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
                 .then(() => {
                     const dmg = CombatEngine.calculateDamage(this.playerState.stats.strength, 'NORMAL');
                     this.applyDamageToEnemy(dmg);
                 });
-        } // Inside executeAction(), find the 'QUICK', 'NORMAL', 'POWER' section and update it:
-else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
-    // Pass the 'type' string directly to calculateHit
-    const hits = CombatEngine.calculateHit(
-    this.playerState.stats.precision, 
-    this.enemyTemplate.stats.guard, 
-    type as AttackType 
-);
+        }
+        else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
+            // Pass the 'type' string directly to calculateHit
+            const hits = CombatEngine.calculateHit(
+                this.playerState.stats.precision,
+                this.enemyTemplate.stats.guard,
+                type as AttackType
+            );
 
-    if (hits) {
-        const dmg = CombatEngine.calculateDamage(this.playerState.stats.strength, type as AttackType);
-        this.applyDamageToEnemy(dmg);
-    } else {
-        this.logBox.log(`You missed!`);
-        this.showFloatingText(this.enemyEntity.x, this.enemyEntity.y, 'MISS', '#cbd5e1');
-        this.time.delayedCall(1000, () => this.processEnemyTurn());
-    }
-} else if (type === 'REST') {
+            if (hits) {
+                const dmg = CombatEngine.calculateDamage(this.playerState.stats.strength, type as AttackType);
+                this.applyDamageToEnemy(dmg);
+            } else {
+                this.logBox.log(`You missed!`);
+                this.showFloatingText(this.enemyEntity.x, this.enemyEntity.y, 'MISS', '#cbd5e1');
+                this.time.delayedCall(1000, () => this.processEnemyTurn());
+            }
+        }
+        else if (type === 'REST') {
             this.logBox.log(`You rest and recover stamina.`);
-            this.playerState.secondaryStats.stamina.current = Math.min(this.playerState.secondaryStats.stamina.max, this.playerState.secondaryStats.stamina.current + 20);
+
+            // 3. Use the engine to determine recovery amount!
+            const recovery = CombatEngine.getRestRecovery();
+
+            this.playerState.secondaryStats.stamina.current = Math.min(
+                this.playerState.secondaryStats.stamina.max,
+                this.playerState.secondaryStats.stamina.current + recovery
+            );
+
             this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
             this.time.delayedCall(1000, () => this.processEnemyTurn());
         }
@@ -271,7 +274,7 @@ else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
     private applyDamageToEnemy(damage: number) {
         this.currentEnemyHp = Math.max(0, this.currentEnemyHp - damage);
         this.enemyHpBar.update(this.currentEnemyHp, this.enemyTemplate.baseHp);
-        
+
         this.logBox.log(`Dealt ${damage} damage!`);
         this.showFloatingText(this.enemyEntity.x, this.enemyEntity.y, `-${damage}`, '#ef4444');
 
@@ -314,7 +317,7 @@ else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
 
                 const hits = CombatEngine.calculateHit(this.enemyTemplate.stats.guard, this.playerState.stats.precision, 'NORMAL');
                 if (hits) {
-                    const dmg = CombatEngine.calculateDamage(this.enemyTemplate.stats.strength, 'NORMAL'); 
+                    const dmg = CombatEngine.calculateDamage(this.enemyTemplate.stats.strength, 'NORMAL');
                     this.applyDamageToPlayer(dmg);
                 } else {
                     this.logBox.log(`${this.enemyIdentity.name} swung, but you DODGED!`);
@@ -328,7 +331,7 @@ else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
     private applyDamageToPlayer(damage: number) {
         this.playerState.secondaryStats.hp.current = Math.max(0, this.playerState.secondaryStats.hp.current - damage);
         this.playerHpBar.update(this.playerState.secondaryStats.hp.current, this.playerState.secondaryStats.hp.max);
-        
+
         this.logBox.log(`${this.enemyIdentity.name} hit you for ${damage} damage!`);
         this.showFloatingText(this.playerEntity.x, this.playerEntity.y, `-${damage}`, '#ef4444');
 
