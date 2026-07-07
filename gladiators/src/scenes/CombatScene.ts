@@ -7,6 +7,7 @@ import { LogBox } from '../components/ui/LogBox';
 import { StatBar } from '../components/ui/StatBar';
 import { BattleEntity } from '../components/BattleEntity';
 import { ActionMenu, type ActionItem } from '../components/ui/ActionMenu';
+import { CombatEngine, type AttackType } from '../utils/CombatEngine';
 
 interface CombatPayload {
     character: PlayerData;
@@ -188,30 +189,11 @@ private updateActionLabels() {
     this.actionMenu.updateLabel(5, `🏃 CHARGE (${getChance(0)}%)`);
 }
 
-// Ensure you update your internal combat logic to use these stats too!
-// Add this to your CombatScene class
-private calculateHit(attackerPrec: number, defenderGuard: number, type: 'QUICK' | 'NORMAL' | 'POWER' | 'CHARGE'): boolean {
-    // Define the risk/reward modifiers
-    const modifiers = {
-        'QUICK': 10,   // +10% Accuracy
-        'NORMAL': 0,   // Base
-        'POWER': -20,  // -20% Accuracy (Risky)
-        'CHARGE': 0    // Base (Same as normal)
-    };
 
-    // Calculate base chance + modifiers
-    const baseChance = 80 + (attackerPrec - defenderGuard);
-    const hitChance = Phaser.Math.Clamp(baseChance + modifiers[type], 5, 95);
-    
-    return (Math.random() * 100) <= hitChance;
-}
 
     
 
-    private calculateDamage(attackerStr: number, type: 'QUICK' | 'NORMAL' | 'POWER'): number {
-        const base = { 'QUICK': 2, 'NORMAL': 5, 'POWER': 10 }[type];
-        return base + Math.floor(attackerStr * 0.3) + Math.floor(Math.random() * 3);
-    }
+   
 
     // --- TURN MANAGEMENT ---
     private startPlayerTurn() {
@@ -258,20 +240,20 @@ private calculateHit(attackerPrec: number, defenderGuard: number, type: 'QUICK' 
         if (type === 'CHARGE') {
              this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
                 .then(() => {
-                    const dmg = this.calculateDamage(this.playerState.stats.strength, 'NORMAL');
+                    const dmg = CombatEngine.calculateDamage(this.playerState.stats.strength, 'NORMAL');
                     this.applyDamageToEnemy(dmg);
                 });
         } // Inside executeAction(), find the 'QUICK', 'NORMAL', 'POWER' section and update it:
 else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
     // Pass the 'type' string directly to calculateHit
-    const hits = this.calculateHit(
-        this.playerState.stats.precision, 
-        this.enemyTemplate.stats.guard, 
-        type as any
-    );
+    const hits = CombatEngine.calculateHit(
+    this.playerState.stats.precision, 
+    this.enemyTemplate.stats.guard, 
+    type as AttackType 
+);
 
     if (hits) {
-        const dmg = this.calculateDamage(this.playerState.stats.strength, type as any);
+        const dmg = CombatEngine.calculateDamage(this.playerState.stats.strength, type as AttackType);
         this.applyDamageToEnemy(dmg);
     } else {
         this.logBox.log(`You missed!`);
@@ -330,9 +312,9 @@ else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
                 this.currentEnemyStamina -= 10;
                 this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
 
-                const hits = this.calculateHit(this.enemyTemplate.stats.guard, this.playerState.stats.precision, 'NORMAL');
+                const hits = CombatEngine.calculateHit(this.enemyTemplate.stats.guard, this.playerState.stats.precision, 'NORMAL');
                 if (hits) {
-                    const dmg = this.calculateDamage(this.enemyTemplate.stats.strength, 'NORMAL'); 
+                    const dmg = CombatEngine.calculateDamage(this.enemyTemplate.stats.strength, 'NORMAL'); 
                     this.applyDamageToPlayer(dmg);
                 } else {
                     this.logBox.log(`${this.enemyIdentity.name} swung, but you DODGED!`);
