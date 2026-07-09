@@ -26,8 +26,16 @@ export default class MainMenuScene extends Phaser.Scene {
 
   async create() {
     const { width, height } = this.scale;
+    let bgm = this.sound.get(AudioKeys.MichaelBossSong);
 
-    this.sound.play(AudioKeys.MichaelBossSong, { loop: true, volume: 0.5 }); //placeholder for now
+    if (!bgm) {
+      bgm = this.sound.add(AudioKeys.MichaelBossSong, { loop: true, volume: 0.5 });
+      bgm.play()
+    }
+    else if(!bgm.isPlaying){
+      bgm.play()
+    }
+
     await document.fonts.ready; // Ensure fonts are loaded before creating text objects
 
     // Background

@@ -1,6 +1,4 @@
 // src/scenes/CreditsScene.ts
-
-//BUG MUSIC ADDS ON INSTEAD OF CONTINUING WHEN BACK TO MAIN MENU
 import Phaser from "phaser";
 import { Fonts } from "../gameinit/Fonts";
 import { ButtonCreator } from "../components/ButtonCreator";
