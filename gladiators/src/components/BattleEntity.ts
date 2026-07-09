@@ -1,7 +1,7 @@
 // src/components/BattleEntity.ts
 import Phaser from 'phaser';
 import { Stickman } from './Stickman';
-import { type Expression } from '../data/PlayerData';
+import { type Expression } from '../types/models';
 
 export interface EntityVisualOptions {
     skinColor: number;

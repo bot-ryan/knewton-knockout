@@ -8,8 +8,8 @@ import { Stickman } from '../components/Stickman';
 import { GameConfig } from '../data/GameConfig';
 import { SceneKeys } from '../data/SceneKeys';
 
-// 🔥 Swapped to use your new Zustand store!
-import { type StatKey, type Expression, usePlayerStore } from '../data/PlayerData';
+import { usePlayerStore } from '../data/PlayerData';
+import { type StatKey, type Expression } from '../types/models';
 
 export default class CharacterCreateScene extends Phaser.Scene {
     constructor() { super(SceneKeys.CharacterCreate); }

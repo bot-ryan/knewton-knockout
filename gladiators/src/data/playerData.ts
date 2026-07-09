@@ -1,8 +1,7 @@
 // src/data/PlayerData.ts
 import { createStore } from 'zustand/vanilla';
+import { type StatKey, type Expression } from '../types/models';
 
-export type StatKey = 'strength' | 'dexterity' | 'precision' | 'guard' | 'vitality' | 'arcane';
-export type Expression = 'poker' | 'happy' | 'sad' | 'angry' | 'wink' | 'determined' | 'battle_cry' | 'smirk' | 'fearful' | 'nervous';
 
 export interface PlayerData {
   name: string;

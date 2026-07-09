@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { faker } from '@faker-js/faker';
 import { type EnemyTemplate } from './EnemyArchetypes'; // 🔥 FIXED: Case-sensitive accurate import path
-import { type Expression } from '../PlayerData'; // Assumes playerData lives in src/playerData.ts
+import { type Expression } from '../../types/models'; // Assumes playerData lives in src/playerData.ts
 
 export interface EnemyIdentity {
     name: string;
