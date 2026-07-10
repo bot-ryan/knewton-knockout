@@ -7,9 +7,9 @@ import { ColorPicker } from '../components/ColorPicker';
 import { Stickman } from '../components/Stickman';
 import { GameConfig } from '../data/GameConfig';
 import { SceneKeys } from '../data/SceneKeys';
-
 import { usePlayerStore } from '../data/PlayerData';
 import { type StatKey, type Expression } from '../types/models';
+import bannedWordsRaw from '../../public/assets/banned_words.txt?raw';
 
 export default class CharacterCreateScene extends Phaser.Scene {
     constructor() { super(SceneKeys.CharacterCreate); }
@@ -60,11 +60,9 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const { width, height } = this.scale;
         this.cameras.main.setBackgroundColor(0x0b0f1a);
 
-        const bannedWordsText = this.cache.text.get('bannedWords');
-        if (bannedWordsText) {
-            this.BANNED_WORDS = bannedWordsText.split('\n').map((w: string) => w.trim().toLowerCase()).filter((w: string) => w.length > 0);
+        if (bannedWordsRaw) {
+            this.BANNED_WORDS = bannedWordsRaw.split('\n').map((w: string) => w.trim().toLowerCase()).filter((w: string) => w.length > 0);
         }
-
         const margin = 20;
         const nameH = 80; 
         const leftColW = Math.floor(width * 0.32);
