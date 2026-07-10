@@ -147,110 +147,104 @@ export default class CombatScene extends Phaser.Scene {
     }
 
     private showPreBattleScreen() {
-        const { width, height } = this.scale;
+    const { width, height } = this.scale;
 
-        // 1. Create a dedicated container for the VS Screen
-        const vsContainer = this.add.container(0, 0);
+    // 1. Create the overlay container
+    const vsContainer = this.add.container(0, 0).setDepth(100);
 
-        // Ensure this container renders on the UI camera, not the zooming world camera
-        this.cameras.main.ignore(vsContainer);
+    // 2. Dark cinematic background
+    const bg = this.add.rectangle(0, 0, width, height, 0x000000, 0.85).setOrigin(0);
+    vsContainer.add(bg);
 
-        // 2. Dim the background to make the UI pop
-        const overlayBg = this.add.rectangle(0, 0, width, height, 0x0b0f1a, 0.9).setOrigin(0);
-        vsContainer.add(overlayBg);
+    // 3. Titles and Names
+    const titleText = this.add.text(width / 2, 80, "TALE OF THE TAPE", {
+        fontFamily: 'Verdana', fontSize: '32px', color: '#ffffff', fontStyle: 'bold'
+    }).setOrigin(0.5);
 
-        // 3. Cinematic Header
-        const title = this.add.text(width / 2, 80, "TALE OF THE TAPE", {
-            fontFamily: 'Verdana', fontSize: '36px', color: '#e2c16b', fontStyle: 'bold', letterSpacing: 4
+    const playerText = this.add.text(width / 2 - 200, 150, this.playerState.name.toUpperCase(), {
+        fontFamily: 'Verdana', fontSize: '24px', color: '#3b82f6', fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    const vsText = this.add.text(width / 2, 150, "VS", {
+        fontFamily: 'Verdana', fontSize: '20px', color: '#7e87a2', fontStyle: 'italic'
+    }).setOrigin(0.5);
+
+    const enemyText = this.add.text(width / 2 + 200, 150, this.enemyTemplate.displayName.toUpperCase(), {
+        fontFamily: 'Verdana', fontSize: '24px', color: '#ef4444', fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    vsContainer.add([titleText, playerText, vsText, enemyText]);
+
+    // 4. Map the Stats for Comparison
+    const statRows = [
+        { label: 'MAX HP', pVal: this.playerState.secondaryStats.hp.max, eVal: this.enemyTemplate.baseHp },
+        { label: 'STAMINA', pVal: this.playerState.secondaryStats.stamina.max, eVal: this.enemyTemplate.baseStamina },
+        { label: 'STRENGTH', pVal: this.playerState.stats.strength, eVal: this.enemyTemplate.stats.strength },
+        { label: 'DEXTERITY', pVal: this.playerState.stats.dexterity, eVal: this.enemyTemplate.stats.dexterity },
+        { label: 'PRECISION', pVal: this.playerState.stats.precision, eVal: this.enemyTemplate.stats.precision },
+        { label: 'GUARD', pVal: this.playerState.stats.guard, eVal: this.enemyTemplate.stats.guard }
+    ];
+
+    let startY = 220;
+    const spacing = 45;
+
+    // Helper logic to figure out who gets the green arrow
+    const getComparison = (val1: number, val2: number) => {
+        if (val1 > val2) return { symbol: '▲', color: '#10b981' }; // Green Up
+        if (val1 < val2) return { symbol: '▼', color: '#ef4444' }; // Red Down
+        return { symbol: '-', color: '#fbbf24' }; // Yellow Dash
+    };
+
+    // 5. Build the Mirrored Stat Rows
+    statRows.forEach((stat, index) => {
+        const y = startY + (index * spacing);
+
+        // Center Label
+        const labelText = this.add.text(width / 2, y, stat.label, {
+            fontFamily: 'Verdana', fontSize: '18px', color: '#9aa4b2', fontStyle: 'bold'
         }).setOrigin(0.5);
-        vsContainer.add(title);
 
-        // 4. Center "VS" Graphic
-        const vsText = this.add.text(width / 2, height / 2 - 40, "VS", {
-            fontFamily: 'Verdana', fontSize: '64px', color: '#ef4444', fontStyle: 'italic', stroke: '#000000', strokeThickness: 6
-        }).setOrigin(0.5);
-        vsContainer.add(vsText);
+        // Determine arrow colors for both sides
+        const pComp = getComparison(stat.pVal, stat.eVal);
+        const eComp = getComparison(stat.eVal, stat.pVal);
 
-        // 5. Setup Coordinates
-        const playerX = width * 0.25;
-        const enemyX = width * 0.75;
-        const midX = width * 0.5;
+        // Player Side (Left): [Value] [Arrow]
+        const pValText = this.add.text(width / 2 - 200, y, String(stat.pVal), {
+            fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(1, 0.5); // Right-aligned against the arrow
 
-        // Player & Enemy Names
-        const pName = this.add.text(playerX, 180, this.playerState.name.toUpperCase(), {
-            fontFamily: 'sans-serif', fontSize: '28px', color: '#3b82f6', fontStyle: 'bold'
+        const pArrowText = this.add.text(width / 2 - 160, y, pComp.symbol, {
+            fontFamily: 'sans-serif', fontSize: '18px', color: pComp.color
         }).setOrigin(0.5);
 
-        const eName = this.add.text(enemyX, 180, this.enemyIdentity.name.toUpperCase(), {
-            fontFamily: 'sans-serif', fontSize: '28px', color: '#ef4444', fontStyle: 'bold'
+        // Enemy Side (Right): [Arrow] [Value]
+        const eArrowText = this.add.text(width / 2 + 160, y, eComp.symbol, {
+            fontFamily: 'sans-serif', fontSize: '18px', color: eComp.color
         }).setOrigin(0.5);
-        vsContainer.add([pName, eName]);
 
-        // 6. Map the Data for Comparison
-        const statRows = [
-            { name: 'HP', pVal: this.playerState.secondaryStats.hp.max, eVal: this.enemyTemplate.baseHp },
-            { name: 'STAMINA', pVal: this.playerState.secondaryStats.stamina.max, eVal: this.enemyTemplate.baseStamina },
-            { name: 'STRENGTH', pVal: this.playerState.stats.strength, eVal: this.enemyTemplate.stats.strength },
-            { name: 'PRECISION', pVal: this.playerState.stats.precision, eVal: this.enemyTemplate.stats.precision },
-            { name: 'GUARD', pVal: this.playerState.stats.guard, eVal: this.enemyTemplate.stats.guard }
-        ];
+        const eValText = this.add.text(width / 2 + 200, y, String(stat.eVal), {
+            fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0, 0.5); // Left-aligned against the arrow
 
-        // 7. Iterate and Draw Rows
-        let startY = 270;
-        const rowHeight = 35;
+        vsContainer.add([labelText, pValText, pArrowText, eArrowText, eValText]);
+    });
 
-        statRows.forEach((stat, index) => {
-            const currentY = startY + (index * rowHeight);
+    // 6. FIGHT Button (Center Bottom)
+    const fightBtn = ButtonCreator.makeStandardButton(
+        this,
+        "FIGHT!",
+        200,
+        60,
+        () => {
+            vsContainer.destroy();
+            this.startPlayerTurn(); // Kick off the actual combat
+        }
+    );
 
-            // Left Side: Player Stat
-            const pStatText = this.add.text(playerX, currentY, `${stat.name}: ${stat.pVal}`, {
-                fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff'
-            }).setOrigin(0.5);
-
-            // Right Side: Enemy Stat
-            const eStatText = this.add.text(enemyX, currentY, `${stat.name}: ${stat.eVal}`, {
-                fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff'
-            }).setOrigin(0.5);
-
-            // Determine Arrow Logic
-            let symbol = '-';
-            let color = '#eab308'; // Yellow (Equal)
-
-            if (stat.pVal > stat.eVal) {
-                symbol = '▲';
-                color = '#22c55e'; // Green (Player Advantage)
-            } else if (stat.pVal < stat.eVal) {
-                symbol = '▼';
-                color = '#ef4444'; // Red (Player Disadvantage)
-            }
-
-            // Middle Column: Comparison Icon
-            const arrowText = this.add.text(midX, currentY, symbol, {
-                fontFamily: 'sans-serif', fontSize: '24px', color: color, fontStyle: 'bold'
-            }).setOrigin(0.5);
-
-            vsContainer.add([pStatText, eStatText, arrowText]);
-        });
-        
-        // Note: Make sure to re-number your "FIGHT!" button step to Step 8!
-
-        // 7. The "FIGHT!" Button
-        const fightBtn = ButtonCreator.makeStandardButton(this, "FIGHT!", width / 2, height - 120, () => {
-            // Add a slick fade out effect to the overlay
-            this.tweens.add({
-                targets: vsContainer,
-                alpha: 0,
-                duration: 300,
-                onComplete: () => {
-                    vsContainer.destroy(); // Clear UI memory
-                    this.startPlayerTurn(); // Officially start the combat loop!
-                }
-            });
-        });
-
-        // Add the button's Phaser container to our overlay
-        vsContainer.add(fightBtn.container);
-    }
+    // Explicitly lock the button to the bottom center of the screen
+    fightBtn.container.setPosition(width / 2, height - 100);
+    vsContainer.add(fightBtn.container);
+}
 
     // --- HELPERS & MATH ---
     private getDistance(): number {
