@@ -1,6 +1,6 @@
 // src/utils/CombatEngine.ts
 
-export type AttackType = 'QUICK' | 'NORMAL' | 'POWER' | 'CHARGE';
+export type AttackType = 'QUICK' | 'NORMAL' | 'POWER'
 
 export class CombatEngine {
 
@@ -10,7 +10,7 @@ export class CombatEngine {
             'QUICK': 10,    // +10% Accuracy
             'NORMAL': 0,    // Base
             'POWER': -20,   // -20% Accuracy
-            'CHARGE': 0     // Base
+            
         };
 
         const baseChance = 80 + (attackerPrec - defenderGuard);
@@ -25,7 +25,7 @@ export class CombatEngine {
             'QUICK': 2,
             'NORMAL': 5,
             'POWER': 10,
-            'CHARGE': 5
+        
         };
 
         const base = baseModifiers[type] || 5;
@@ -41,7 +41,7 @@ export class CombatEngine {
             'QUICK': 10,
             'NORMAL': 0,
             'POWER': -20,
-            'CHARGE': 0
+            
         };
         const baseChance = 80 + (attackerPrec - defenderGuard);
         // Note: We use Math.max/min here to keep Phaser decoupled from the engine!

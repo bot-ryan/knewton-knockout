@@ -123,7 +123,6 @@ export default class CombatScene extends Phaser.Scene {
             { label: '💥 POWER', description: 'Heavy, high-damage blow.', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('POWER') },
             { label: '🏃 CHARGE', description: 'Lunge and strike!', isAttack: true, isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
             { label: '💤 REST', description: 'Recover stamina.', isAttack: false, action: () => this.executeAction('REST') },
-            { label: '🗣️ TAUNT', description: 'Mock the enemy.', isAttack: false, action: () => this.executeAction('TAUNT') }
         ];
 
         this.actionMenu = new ActionMenu(
@@ -244,6 +243,8 @@ export default class CombatScene extends Phaser.Scene {
     // Explicitly lock the button to the bottom center of the screen
     fightBtn.container.setPosition(width / 2, height - 100);
     vsContainer.add(fightBtn.container);
+
+     this.uiContainer.add(vsContainer);
 }
 
     // --- HELPERS & MATH ---
@@ -284,7 +285,6 @@ export default class CombatScene extends Phaser.Scene {
         this.actionMenu.updateLabel(2, `⚡ QUICK (${CombatEngine.getHitChance(prec, guard, 'QUICK')}%)`);
         this.actionMenu.updateLabel(3, `⚔️ NORMAL (${CombatEngine.getHitChance(prec, guard, 'NORMAL')}%)`);
         this.actionMenu.updateLabel(4, `💥 POWER (${CombatEngine.getHitChance(prec, guard, 'POWER')}%)`);
-        this.actionMenu.updateLabel(5, `🏃 CHARGE (${CombatEngine.getHitChance(prec, guard, 'CHARGE')}%)`);
     }
 
 
@@ -327,7 +327,7 @@ export default class CombatScene extends Phaser.Scene {
         const cost = CombatEngine.getActionCost(type);
 
         // Stamina Deduction
-        if (type !== 'REST' && type !== 'TAUNT') {
+        if (type !== 'REST') {
             // 2. Subtract the cost directly
             this.playerState.secondaryStats.stamina.current -= cost;
             this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
@@ -417,7 +417,7 @@ export default class CombatScene extends Phaser.Scene {
                 this.currentEnemyStamina -= 10;
                 this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
 
-                const hits = CombatEngine.calculateHit(this.enemyTemplate.stats.guard, this.playerState.stats.precision, 'NORMAL');
+                const hits = CombatEngine.calculateHit(this.enemyTemplate.stats.precision, this.playerState.stats.guard, 'NORMAL');
                 if (hits) {
                     const dmg = CombatEngine.calculateDamage(this.enemyTemplate.stats.strength, 'NORMAL');
                     this.applyDamageToPlayer(dmg);
