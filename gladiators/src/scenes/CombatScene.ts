@@ -250,7 +250,7 @@ export default class CombatScene extends Phaser.Scene {
 
     private movePlayer(direction: 'LEFT' | 'RIGHT') {
         if (this.turnState !== 'PLAYER') return;
-        
+
         // 🔥 GLITCH FIX: Check stamina before dashing!
         const dashCost = CombatEngine.getActionCost('MOVE');
         if (this.playerState.secondaryStats.stamina.current < dashCost) {
@@ -260,7 +260,7 @@ export default class CombatScene extends Phaser.Scene {
         }
 
         this.turnState = 'LOCKED';
-        
+
         // Deduct stamina for movement
         this.playerState.secondaryStats.stamina.current -= dashCost;
         this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
@@ -288,6 +288,8 @@ export default class CombatScene extends Phaser.Scene {
         if (type === 'CHARGE') {
             this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
                 .then(() => {
+                    // CHARGE deals the same damage as NORMAL — the distinction is
+                    // purely movement: it closes the gap before hitting
                     const dmg = CombatEngine.calculateDamage(this.playerState.stats.strength, 'NORMAL');
                     this.applyDamageToEnemy(dmg);
                 });
@@ -332,7 +334,7 @@ export default class CombatScene extends Phaser.Scene {
         this.enemyEntity.playDamageFlash().then(() => {
             if (this.currentEnemyHp <= 0) {
                 this.logBox.log(`Victory! Leaving arena...`);
-                
+
                 // 🔥 GLITCH FIX: Sync localized stats back to global Zustand store!
                 usePlayerStore.getState().updateSecondaryStats({
                     hp: this.playerState.secondaryStats.hp,
@@ -356,10 +358,10 @@ export default class CombatScene extends Phaser.Scene {
 
         if (this.currentEnemyStamina <= 0) {
             this.logBox.log(`${this.enemyIdentity.name} is exhausted and forced to rest!`);
-            
+
             // 🔥 GLITCH FIX: Enemy plays by Engine rules for Rest
             this.currentEnemyStamina += CombatEngine.getRestRecovery();
-            
+
             this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
             this.time.delayedCall(1000, () => this.startPlayerTurn());
             return;
@@ -374,7 +376,7 @@ export default class CombatScene extends Phaser.Scene {
             } else {
                 // 🔥 GLITCH FIX: Enemy plays by Engine rules for Attack
                 this.currentEnemyStamina -= CombatEngine.getActionCost('NORMAL');
-                
+
                 this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
 
                 const hits = CombatEngine.calculateHit(this.enemyTemplate.stats.precision, this.playerState.stats.guard, 'NORMAL');
@@ -400,11 +402,11 @@ export default class CombatScene extends Phaser.Scene {
         this.playerEntity.playDamageFlash().then(() => {
             if (this.playerState.secondaryStats.hp.current <= 0) {
                 this.turnState = 'LOCKED';
-                
+
                 // 🔥 GLITCH FIX: Handle the Death State cleanly
                 this.logBox.log(`YOU DIED! Game Over.`);
                 this.showFloatingText(this.playerEntity.x, this.playerEntity.y, 'DEFEATED', '#7e87a2');
-                
+
                 this.time.delayedCall(2000, () => {
                     this.cameras.main.fadeOut(500);
                     this.uiCamera.fadeOut(500);

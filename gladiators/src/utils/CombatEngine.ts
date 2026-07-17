@@ -25,6 +25,7 @@ export class CombatEngine {
             'QUICK': 2,
             'NORMAL': 5,
             'POWER': 10,
+             // CHARGE intentionally omitted — it uses NORMAL damage, see CombatScene
         
         };
 
