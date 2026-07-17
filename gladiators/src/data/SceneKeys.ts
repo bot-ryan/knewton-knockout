@@ -1,3 +1,5 @@
+
+
 /**
  * SceneKeys.ts
  * Centralized registry of all scene identifiers. 
@@ -8,8 +10,8 @@ export const SceneKeys = {
     MainMenu: 'MainMenu', 
     HowToPlay: 'HowToPlay',
     CharacterCreate: 'CharacterCreate', 
-    OpenMap: 'OpenMap', 
-    Arena: 'Arena', 
+    CombatScene: 'CombatScene',
+    OpenMap: 'OpenMap',
     GameOver: 'GameOver', 
     Credits: 'Credits' 
 } as const; 
