@@ -50,7 +50,7 @@ export class CombatEngine {
 
     static getActionCost(type: string): number {
         const costs: Record<string, number> = {
-            'QUICK': 5, 'NORMAL': 10, 'POWER': 20, 'CHARGE': 15, 'REST': 0, 'TAUNT': 0
+            'QUICK': 5, 'NORMAL': 10, 'POWER': 20, 'CHARGE': 15, 'REST': 0, 'TAUNT': 0, 'MOVE': 5
         };
         return costs[type] || 0;
     }

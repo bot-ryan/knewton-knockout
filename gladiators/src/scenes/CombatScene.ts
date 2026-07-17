@@ -10,6 +10,11 @@ import { ActionMenu, type ActionItem } from '../components/ui/ActionMenu';
 import { CombatEngine, type AttackType } from '../utils/CombatEngine';
 import { ButtonCreator } from '../components/ButtonCreator';
 
+// 🔥 NEW IMPORTS FOR ZUSTAND SYNC & SCENE KEYS
+import { usePlayerStore } from '../data/PlayerData';
+import { useMapStore } from '../data/MapData';
+import { SceneKeys } from '../data/SceneKeys';
+
 interface CombatPayload {
     character: PlayerData;
     enemyTemplate: EnemyTemplate;
@@ -46,14 +51,13 @@ export default class CombatScene extends Phaser.Scene {
     private readonly GRID_SIZE = 80;
     private worldCenterX = 0;
 
-    // Upgraded to a 3-state system to prevent click-spamming during animations
     private turnState: 'PLAYER' | 'ENEMY' | 'LOCKED' = 'PLAYER';
 
     private uiCamera!: Phaser.Cameras.Scene2D.Camera;
     private uiContainer!: Phaser.GameObjects.Container;
 
     constructor() {
-        super('CombatScene');
+        super(SceneKeys.CombatScene); // Better to use SceneKeys if Arena is mapped!
     }
 
     preload() {
@@ -62,7 +66,7 @@ export default class CombatScene extends Phaser.Scene {
 
     init(data: CombatPayload) {
         if (!data || !data.enemyTemplate || !data.character) {
-            this.scene.start('OpenMap');
+            this.scene.start(SceneKeys.OpenMap);
             return;
         }
 
@@ -71,7 +75,6 @@ export default class CombatScene extends Phaser.Scene {
         this.enemyIdentity = generateEnemyIdentity(this.enemyTemplate);
 
         this.currentEnemyHp = this.enemyTemplate.baseHp;
-        // Safely fallback if baseMp doesn't exist on the type yet
         this.currentEnemyMp = (this.enemyTemplate as any).baseMp || 0;
         this.currentEnemyStamina = this.enemyTemplate.baseStamina;
     }
@@ -122,7 +125,7 @@ export default class CombatScene extends Phaser.Scene {
             { label: '⚔️ NORMAL', description: 'Standard melee attack.', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('NORMAL') },
             { label: '💥 POWER', description: 'Heavy, high-damage blow.', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('POWER') },
             { label: '🏃 CHARGE', description: 'Lunge and strike!', isAttack: true, isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
-            { label: '💤 REST', description: 'Recover stamina.', isAttack: false, action: () => this.executeAction('REST') },
+            { label: '💤 REST', description: 'Recover stamina.', isAttack: false, action: () => this.executeAction('REST') }
         ];
 
         this.actionMenu = new ActionMenu(
@@ -141,113 +144,64 @@ export default class CombatScene extends Phaser.Scene {
         }
 
         this.updateDynamicCamera(0);
-        //this.startPlayerTurn(); // Initialize turn state properly
         this.showPreBattleScreen();
     }
 
     private showPreBattleScreen() {
-    const { width, height } = this.scale;
+        const { width, height } = this.scale;
+        const vsContainer = this.add.container(0, 0).setDepth(100);
+        const bg = this.add.rectangle(0, 0, width, height, 0x000000, 0.85).setOrigin(0);
+        vsContainer.add(bg);
 
-    // 1. Create the overlay container
-    const vsContainer = this.add.container(0, 0).setDepth(100);
+        const titleText = this.add.text(width / 2, 80, "TALE OF THE TAPE", { fontFamily: 'Verdana', fontSize: '32px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        const playerText = this.add.text(width / 2 - 200, 150, this.playerState.name.toUpperCase(), { fontFamily: 'Verdana', fontSize: '24px', color: '#3b82f6', fontStyle: 'bold' }).setOrigin(0.5);
+        const vsText = this.add.text(width / 2, 150, "VS", { fontFamily: 'Verdana', fontSize: '20px', color: '#7e87a2', fontStyle: 'italic' }).setOrigin(0.5);
+        const enemyText = this.add.text(width / 2 + 200, 150, this.enemyTemplate.displayName.toUpperCase(), { fontFamily: 'Verdana', fontSize: '24px', color: '#ef4444', fontStyle: 'bold' }).setOrigin(0.5);
 
-    // 2. Dark cinematic background
-    const bg = this.add.rectangle(0, 0, width, height, 0x000000, 0.85).setOrigin(0);
-    vsContainer.add(bg);
+        vsContainer.add([titleText, playerText, vsText, enemyText]);
 
-    // 3. Titles and Names
-    const titleText = this.add.text(width / 2, 80, "TALE OF THE TAPE", {
-        fontFamily: 'Verdana', fontSize: '32px', color: '#ffffff', fontStyle: 'bold'
-    }).setOrigin(0.5);
+        const statRows = [
+            { label: 'MAX HP', pVal: this.playerState.secondaryStats.hp.max, eVal: this.enemyTemplate.baseHp },
+            { label: 'STAMINA', pVal: this.playerState.secondaryStats.stamina.max, eVal: this.enemyTemplate.baseStamina },
+            { label: 'STRENGTH', pVal: this.playerState.stats.strength, eVal: this.enemyTemplate.stats.strength },
+            { label: 'DEXTERITY', pVal: this.playerState.stats.dexterity, eVal: this.enemyTemplate.stats.dexterity },
+            { label: 'PRECISION', pVal: this.playerState.stats.precision, eVal: this.enemyTemplate.stats.precision },
+            { label: 'GUARD', pVal: this.playerState.stats.guard, eVal: this.enemyTemplate.stats.guard }
+        ];
 
-    const playerText = this.add.text(width / 2 - 200, 150, this.playerState.name.toUpperCase(), {
-        fontFamily: 'Verdana', fontSize: '24px', color: '#3b82f6', fontStyle: 'bold'
-    }).setOrigin(0.5);
+        let startY = 220;
+        const spacing = 45;
 
-    const vsText = this.add.text(width / 2, 150, "VS", {
-        fontFamily: 'Verdana', fontSize: '20px', color: '#7e87a2', fontStyle: 'italic'
-    }).setOrigin(0.5);
+        const getComparison = (val1: number, val2: number) => {
+            if (val1 > val2) return { symbol: '▲', color: '#10b981' };
+            if (val1 < val2) return { symbol: '▼', color: '#ef4444' };
+            return { symbol: '-', color: '#fbbf24' };
+        };
 
-    const enemyText = this.add.text(width / 2 + 200, 150, this.enemyTemplate.displayName.toUpperCase(), {
-        fontFamily: 'Verdana', fontSize: '24px', color: '#ef4444', fontStyle: 'bold'
-    }).setOrigin(0.5);
+        statRows.forEach((stat, index) => {
+            const y = startY + (index * spacing);
+            const labelText = this.add.text(width / 2, y, stat.label, { fontFamily: 'Verdana', fontSize: '18px', color: '#9aa4b2', fontStyle: 'bold' }).setOrigin(0.5);
+            const pComp = getComparison(stat.pVal, stat.eVal);
+            const eComp = getComparison(stat.eVal, stat.pVal);
 
-    vsContainer.add([titleText, playerText, vsText, enemyText]);
+            const pValText = this.add.text(width / 2 - 200, y, String(stat.pVal), { fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(1, 0.5);
+            const pArrowText = this.add.text(width / 2 - 160, y, pComp.symbol, { fontFamily: 'sans-serif', fontSize: '18px', color: pComp.color }).setOrigin(0.5);
+            const eArrowText = this.add.text(width / 2 + 160, y, eComp.symbol, { fontFamily: 'sans-serif', fontSize: '18px', color: eComp.color }).setOrigin(0.5);
+            const eValText = this.add.text(width / 2 + 200, y, String(stat.eVal), { fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0, 0.5);
 
-    // 4. Map the Stats for Comparison
-    const statRows = [
-        { label: 'MAX HP', pVal: this.playerState.secondaryStats.hp.max, eVal: this.enemyTemplate.baseHp },
-        { label: 'STAMINA', pVal: this.playerState.secondaryStats.stamina.max, eVal: this.enemyTemplate.baseStamina },
-        { label: 'STRENGTH', pVal: this.playerState.stats.strength, eVal: this.enemyTemplate.stats.strength },
-        { label: 'DEXTERITY', pVal: this.playerState.stats.dexterity, eVal: this.enemyTemplate.stats.dexterity },
-        { label: 'PRECISION', pVal: this.playerState.stats.precision, eVal: this.enemyTemplate.stats.precision },
-        { label: 'GUARD', pVal: this.playerState.stats.guard, eVal: this.enemyTemplate.stats.guard }
-    ];
+            vsContainer.add([labelText, pValText, pArrowText, eArrowText, eValText]);
+        });
 
-    let startY = 220;
-    const spacing = 45;
-
-    // Helper logic to figure out who gets the green arrow
-    const getComparison = (val1: number, val2: number) => {
-        if (val1 > val2) return { symbol: '▲', color: '#10b981' }; // Green Up
-        if (val1 < val2) return { symbol: '▼', color: '#ef4444' }; // Red Down
-        return { symbol: '-', color: '#fbbf24' }; // Yellow Dash
-    };
-
-    // 5. Build the Mirrored Stat Rows
-    statRows.forEach((stat, index) => {
-        const y = startY + (index * spacing);
-
-        // Center Label
-        const labelText = this.add.text(width / 2, y, stat.label, {
-            fontFamily: 'Verdana', fontSize: '18px', color: '#9aa4b2', fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        // Determine arrow colors for both sides
-        const pComp = getComparison(stat.pVal, stat.eVal);
-        const eComp = getComparison(stat.eVal, stat.pVal);
-
-        // Player Side (Left): [Value] [Arrow]
-        const pValText = this.add.text(width / 2 - 200, y, String(stat.pVal), {
-            fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold'
-        }).setOrigin(1, 0.5); // Right-aligned against the arrow
-
-        const pArrowText = this.add.text(width / 2 - 160, y, pComp.symbol, {
-            fontFamily: 'sans-serif', fontSize: '18px', color: pComp.color
-        }).setOrigin(0.5);
-
-        // Enemy Side (Right): [Arrow] [Value]
-        const eArrowText = this.add.text(width / 2 + 160, y, eComp.symbol, {
-            fontFamily: 'sans-serif', fontSize: '18px', color: eComp.color
-        }).setOrigin(0.5);
-
-        const eValText = this.add.text(width / 2 + 200, y, String(stat.eVal), {
-            fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold'
-        }).setOrigin(0, 0.5); // Left-aligned against the arrow
-
-        vsContainer.add([labelText, pValText, pArrowText, eArrowText, eValText]);
-    });
-
-    // 6. FIGHT Button (Center Bottom)
-    const fightBtn = ButtonCreator.makeStandardButton(
-        this,
-        "FIGHT!",
-        200,
-        60,
-        () => {
+        const fightBtn = ButtonCreator.makeStandardButton(this, "FIGHT!", 200, 60, () => {
             vsContainer.destroy();
-            this.startPlayerTurn(); // Kick off the actual combat
-        }
-    );
+            this.startPlayerTurn();
+        });
 
-    // Explicitly lock the button to the bottom center of the screen
-    fightBtn.container.setPosition(width / 2, height - 100);
-    vsContainer.add(fightBtn.container);
+        fightBtn.container.setPosition(width / 2, height - 100);
+        vsContainer.add(fightBtn.container);
+        this.uiContainer.add(vsContainer);
+    }
 
-     this.uiContainer.add(vsContainer);
-}
-
-    // --- HELPERS & MATH ---
     private getDistance(): number {
         return Math.abs(this.enemyEntity.gridX - this.playerEntity.gridX);
     }
@@ -256,7 +210,6 @@ export default class CombatScene extends Phaser.Scene {
         if (!this.playerEntity || !this.enemyEntity) return;
         const midpointX = (this.playerEntity.x + this.enemyEntity.x) / 2;
         const targetZoom = Phaser.Math.Clamp(this.scale.width / (Math.abs(this.playerEntity.x - this.enemyEntity.x) + 450), 0.6, 1.3);
-
         this.cameras.main.pan(midpointX, this.scale.height * 0.5, duration, 'Sine.easeInOut');
         this.cameras.main.zoomTo(targetZoom, duration, 'Sine.easeInOut');
     }
@@ -266,30 +219,21 @@ export default class CombatScene extends Phaser.Scene {
             fontFamily: 'sans-serif', fontSize: '26px', color: color, fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
         }).setOrigin(0.5);
 
-        this.uiCamera.ignore(floatText); // Keep in world space to zoom properly
-
+        this.uiCamera.ignore(floatText);
         this.tweens.add({
             targets: floatText, y: y - 120, alpha: 0, duration: 1200, ease: 'Cubic.easeOut',
             onComplete: () => floatText.destroy()
         });
     }
 
-    // Add these to CombatScene.ts
-
-    // Replace your existing updateActionLabels method with this:
     private updateActionLabels() {
         const prec = this.playerState.stats.precision;
         const guard = this.enemyTemplate.stats.guard;
-
-        // Update labels specifically
         this.actionMenu.updateLabel(2, `⚡ QUICK (${CombatEngine.getHitChance(prec, guard, 'QUICK')}%)`);
         this.actionMenu.updateLabel(3, `⚔️ NORMAL (${CombatEngine.getHitChance(prec, guard, 'NORMAL')}%)`);
         this.actionMenu.updateLabel(4, `💥 POWER (${CombatEngine.getHitChance(prec, guard, 'POWER')}%)`);
     }
 
-
-
-    // --- TURN MANAGEMENT ---
     private startPlayerTurn() {
         if (this.playerState.secondaryStats.stamina.current <= 0) {
             this.turnState = 'LOCKED';
@@ -300,15 +244,26 @@ export default class CombatScene extends Phaser.Scene {
 
         this.turnState = 'PLAYER';
         this.logBox.log(`It is your turn.`);
-
-        // Add these two lines:
         if (this.actionMenu.refresh) this.actionMenu.refresh();
         this.updateActionLabels();
     }
 
     private movePlayer(direction: 'LEFT' | 'RIGHT') {
         if (this.turnState !== 'PLAYER') return;
+        
+        // 🔥 GLITCH FIX: Check stamina before dashing!
+        const dashCost = CombatEngine.getActionCost('MOVE');
+        if (this.playerState.secondaryStats.stamina.current < dashCost) {
+            this.logBox.log(`Too exhausted to dash!`);
+            this.showFloatingText(this.playerEntity.x, this.playerEntity.y, 'TIRED', '#cbd5e1');
+            return;
+        }
+
         this.turnState = 'LOCKED';
+        
+        // Deduct stamina for movement
+        this.playerState.secondaryStats.stamina.current -= dashCost;
+        this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
 
         const distance = 1 + Math.floor(this.playerState.stats.dexterity / 20);
         const intendedGridX = this.playerEntity.gridX + (direction === 'LEFT' ? -distance : distance);
@@ -323,12 +278,9 @@ export default class CombatScene extends Phaser.Scene {
         if (this.turnState !== 'PLAYER' && !force) return;
         this.turnState = 'LOCKED';
 
-        // 1. Get the exact cost as a single number
         const cost = CombatEngine.getActionCost(type);
 
-        // Stamina Deduction
         if (type !== 'REST') {
-            // 2. Subtract the cost directly
             this.playerState.secondaryStats.stamina.current -= cost;
             this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
         }
@@ -341,7 +293,6 @@ export default class CombatScene extends Phaser.Scene {
                 });
         }
         else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
-            // Pass the 'type' string directly to calculateHit
             const hits = CombatEngine.calculateHit(
                 this.playerState.stats.precision,
                 this.enemyTemplate.stats.guard,
@@ -359,8 +310,6 @@ export default class CombatScene extends Phaser.Scene {
         }
         else if (type === 'REST') {
             this.logBox.log(`You rest and recover stamina.`);
-
-            // 3. Use the engine to determine recovery amount!
             const recovery = CombatEngine.getRestRecovery();
 
             this.playerState.secondaryStats.stamina.current = Math.min(
@@ -383,11 +332,17 @@ export default class CombatScene extends Phaser.Scene {
         this.enemyEntity.playDamageFlash().then(() => {
             if (this.currentEnemyHp <= 0) {
                 this.logBox.log(`Victory! Leaving arena...`);
-                // TODO: Sync player Zustand store here! (e.g., usePlayerStore.getState().saveCombatStats(this.playerState))
+                
+                // 🔥 GLITCH FIX: Sync localized stats back to global Zustand store!
+                usePlayerStore.getState().updateSecondaryStats({
+                    hp: this.playerState.secondaryStats.hp,
+                    stamina: this.playerState.secondaryStats.stamina
+                });
+
                 this.time.delayedCall(1500, () => {
                     this.cameras.main.fadeOut(250);
                     this.uiCamera.fadeOut(250);
-                    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('OpenMap'));
+                    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(SceneKeys.OpenMap));
                 });
             } else {
                 this.time.delayedCall(500, () => this.processEnemyTurn());
@@ -401,7 +356,10 @@ export default class CombatScene extends Phaser.Scene {
 
         if (this.currentEnemyStamina <= 0) {
             this.logBox.log(`${this.enemyIdentity.name} is exhausted and forced to rest!`);
-            this.currentEnemyStamina += 20;
+            
+            // 🔥 GLITCH FIX: Enemy plays by Engine rules for Rest
+            this.currentEnemyStamina += CombatEngine.getRestRecovery();
+            
             this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
             this.time.delayedCall(1000, () => this.startPlayerTurn());
             return;
@@ -414,7 +372,9 @@ export default class CombatScene extends Phaser.Scene {
                 this.enemyEntity.animateToGrid(this.enemyEntity.gridX - 1, 400, () => this.updateDynamicCamera(0))
                     .then(() => this.startPlayerTurn());
             } else {
-                this.currentEnemyStamina -= 10;
+                // 🔥 GLITCH FIX: Enemy plays by Engine rules for Attack
+                this.currentEnemyStamina -= CombatEngine.getActionCost('NORMAL');
+                
                 this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
 
                 const hits = CombatEngine.calculateHit(this.enemyTemplate.stats.precision, this.playerState.stats.guard, 'NORMAL');
@@ -440,8 +400,19 @@ export default class CombatScene extends Phaser.Scene {
         this.playerEntity.playDamageFlash().then(() => {
             if (this.playerState.secondaryStats.hp.current <= 0) {
                 this.turnState = 'LOCKED';
+                
+                // 🔥 GLITCH FIX: Handle the Death State cleanly
                 this.logBox.log(`YOU DIED! Game Over.`);
-                // TODO: Handle death state (wipe loot, return to main menu, reset Zustand state)
+                this.showFloatingText(this.playerEntity.x, this.playerEntity.y, 'DEFEATED', '#7e87a2');
+                
+                this.time.delayedCall(2000, () => {
+                    this.cameras.main.fadeOut(500);
+                    this.uiCamera.fadeOut(500);
+                    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                        useMapStore.getState().clearMap(); // Wipe roguelike progress
+                        this.scene.start(SceneKeys.MainMenu);
+                    });
+                });
             } else {
                 this.startPlayerTurn();
             }
