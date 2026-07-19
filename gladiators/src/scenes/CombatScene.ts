@@ -281,7 +281,7 @@ export default class CombatScene extends Phaser.Scene {
         const cost = CombatEngine.getActionCost(type);
 
         if (type !== 'REST') {
-            this.playerState.secondaryStats.stamina.current -= cost;
+            this.playerState.secondaryStats.stamina.current = Math.max(0, this.playerState.secondaryStats.stamina.current - cost); //so stamina won't go below 0
             this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
         }
 
@@ -359,8 +359,11 @@ export default class CombatScene extends Phaser.Scene {
         if (this.currentEnemyStamina <= 0) {
             this.logBox.log(`${this.enemyIdentity.name} is exhausted and forced to rest!`);
 
-            // 🔥 GLITCH FIX: Enemy plays by Engine rules for Rest
-            this.currentEnemyStamina += CombatEngine.getRestRecovery();
+            //so stamina won't go above max
+            this.currentEnemyStamina = Math.min(
+                this.enemyTemplate.baseStamina,
+                this.currentEnemyStamina + CombatEngine.getRestRecovery()
+            );
 
             this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
             this.time.delayedCall(1000, () => this.startPlayerTurn());
