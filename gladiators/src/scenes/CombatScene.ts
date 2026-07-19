@@ -267,7 +267,9 @@ export default class CombatScene extends Phaser.Scene {
 
         const distance = 1 + Math.floor(this.playerState.stats.dexterity / 20);
         const intendedGridX = this.playerEntity.gridX + (direction === 'LEFT' ? -distance : distance);
-        const finalGridX = intendedGridX >= this.enemyEntity.gridX ? this.enemyEntity.gridX - 1 : intendedGridX;
+        const MIN_GRID_X = -8;
+        const finalGridX = Phaser.Math.Clamp(intendedGridX, MIN_GRID_X, this.enemyEntity.gridX - 1);
+        //const finalGridX = intendedGridX >= this.enemyEntity.gridX ? this.enemyEntity.gridX - 1 : intendedGridX;
 
         this.logBox.log(`You dashed to the ${direction.toLowerCase()}.`);
         this.playerEntity.animateToGrid(finalGridX, 400, () => this.updateDynamicCamera(0))
