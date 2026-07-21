@@ -10,7 +10,6 @@ export class CombatEngine {
             'QUICK': 10,    // +10% Accuracy
             'NORMAL': 0,    // Base
             'POWER': -20,   // -20% Accuracy
-            
         };
 
         const baseChance = 80 + (attackerPrec - defenderGuard);
@@ -19,14 +18,13 @@ export class CombatEngine {
         return (Math.random() * 100) <= hitChance;
     }
 
-    // 2. Damage Calculation (Moved from CombatScene!)
+    // 2. Damage Calculation
     static calculateDamage(attackerStr: number, type: AttackType): number {
         const baseModifiers: Record<AttackType, number> = {
             'QUICK': 2,
             'NORMAL': 5,
             'POWER': 10,
-             // CHARGE intentionally omitted — it uses NORMAL damage, see CombatScene
-        
+            // CHARGE intentionally omitted — it uses NORMAL damage, see CombatScene
         };
 
         const base = baseModifiers[type] || 5;
@@ -35,17 +33,13 @@ export class CombatEngine {
         return base + Math.floor(attackerStr * 0.3) + Math.floor(Math.random() * 3);
     }
 
-    // Add these static methods to your existing CombatEngine class
-
     static getHitChance(attackerPrec: number, defenderGuard: number, type: AttackType): number {
         const modifiers: Record<AttackType, number> = {
             'QUICK': 10,
             'NORMAL': 0,
             'POWER': -20,
-            
         };
         const baseChance = 80 + (attackerPrec - defenderGuard);
-        // Note: We use Math.max/min here to keep Phaser decoupled from the engine!
         return Math.max(5, Math.min(95, baseChance + (modifiers[type] || 0)));
     }
 
@@ -57,6 +51,12 @@ export class CombatEngine {
     }
 
     static getRestRecovery(): number {
-        return 20; // Later, you can pass in stats to scale this!
+        return 20;
+    }
+
+    // 🔥 NEW: How far the player can lunge, scaled by dexterity
+    static getChargeRange(dexterity: number): number {
+        // Same formula as movement — dex governs both speed and lunge distance
+         return Math.max(2, 1 + Math.floor(dexterity / 2)); // minimum range of 2
     }
 }

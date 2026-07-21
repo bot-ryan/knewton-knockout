@@ -10,7 +10,6 @@ import { ActionMenu, type ActionItem } from '../components/ui/ActionMenu';
 import { CombatEngine, type AttackType } from '../utils/CombatEngine';
 import { ButtonCreator } from '../components/ButtonCreator';
 
-// 🔥 NEW IMPORTS FOR ZUSTAND SYNC & SCENE KEYS
 import { usePlayerStore } from '../data/PlayerData';
 import { useMapStore } from '../data/MapData';
 import { SceneKeys } from '../data/SceneKeys';
@@ -57,7 +56,7 @@ export default class CombatScene extends Phaser.Scene {
     private uiContainer!: Phaser.GameObjects.Container;
 
     constructor() {
-        super(SceneKeys.CombatScene); // Better to use SceneKeys if Arena is mapped!
+        super(SceneKeys.CombatScene);
     }
 
     preload() {
@@ -124,7 +123,7 @@ export default class CombatScene extends Phaser.Scene {
             { label: '⚡ QUICK', description: 'Fast, low-damage strike.', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('QUICK') },
             { label: '⚔️ NORMAL', description: 'Standard melee attack.', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('NORMAL') },
             { label: '💥 POWER', description: 'Heavy, high-damage blow.', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('POWER') },
-            { label: '🏃 CHARGE', description: 'Lunge and strike!', isAttack: true, isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
+            { label: '🏃 CHARGE', description: 'Lunge forward! Range depends on dexterity.', isAttack: true, isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
             { label: '💤 REST', description: 'Recover stamina.', isAttack: false, action: () => this.executeAction('REST') }
         ];
 
@@ -226,12 +225,17 @@ export default class CombatScene extends Phaser.Scene {
         });
     }
 
+    // 🔥 CHANGED: Added CHARGE label at index 5 showing range + whether it will reach
     private updateActionLabels() {
         const prec = this.playerState.stats.precision;
         const guard = this.enemyTemplate.stats.guard;
+        const chargeRange = CombatEngine.getChargeRange(this.playerState.stats.dexterity);
+        const willReach = this.getDistance() <= chargeRange;
+
         this.actionMenu.updateLabel(2, `⚡ QUICK (${CombatEngine.getHitChance(prec, guard, 'QUICK')}%)`);
         this.actionMenu.updateLabel(3, `⚔️ NORMAL (${CombatEngine.getHitChance(prec, guard, 'NORMAL')}%)`);
         this.actionMenu.updateLabel(4, `💥 POWER (${CombatEngine.getHitChance(prec, guard, 'POWER')}%)`);
+        this.actionMenu.updateLabel(5, `🏃 CHARGE (range: ${chargeRange}) ${willReach ? '✓' : '⚠️'}`);
     }
 
     private startPlayerTurn() {
@@ -251,7 +255,6 @@ export default class CombatScene extends Phaser.Scene {
     private movePlayer(direction: 'LEFT' | 'RIGHT') {
         if (this.turnState !== 'PLAYER') return;
 
-        // 🔥 GLITCH FIX: Check stamina before dashing!
         const dashCost = CombatEngine.getActionCost('MOVE');
         if (this.playerState.secondaryStats.stamina.current < dashCost) {
             this.logBox.log(`Too exhausted to dash!`);
@@ -261,15 +264,13 @@ export default class CombatScene extends Phaser.Scene {
 
         this.turnState = 'LOCKED';
 
-        // Deduct stamina for movement
         this.playerState.secondaryStats.stamina.current -= dashCost;
         this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
 
-        const distance = 1 + Math.floor(this.playerState.stats.dexterity / 20);
+        const distance = 1 + Math.floor(this.playerState.stats.dexterity / 2);
         const intendedGridX = this.playerEntity.gridX + (direction === 'LEFT' ? -distance : distance);
         const MIN_GRID_X = -8;
         const finalGridX = Phaser.Math.Clamp(intendedGridX, MIN_GRID_X, this.enemyEntity.gridX - 1);
-        //const finalGridX = intendedGridX >= this.enemyEntity.gridX ? this.enemyEntity.gridX - 1 : intendedGridX;
 
         this.logBox.log(`You dashed to the ${direction.toLowerCase()}.`);
         this.playerEntity.animateToGrid(finalGridX, 400, () => this.updateDynamicCamera(0))
@@ -283,18 +284,42 @@ export default class CombatScene extends Phaser.Scene {
         const cost = CombatEngine.getActionCost(type);
 
         if (type !== 'REST') {
-            this.playerState.secondaryStats.stamina.current = Math.max(0, this.playerState.secondaryStats.stamina.current - cost); //so stamina won't go below 0
+            this.playerState.secondaryStats.stamina.current = Math.max(0, this.playerState.secondaryStats.stamina.current - cost);
             this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
         }
 
+        // 🔥 CHANGED: CHARGE now checks dex-based range — may whiff if too far
         if (type === 'CHARGE') {
-            this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
-                .then(() => {
-                    // CHARGE deals the same damage as NORMAL — the distinction is
-                    // purely movement: it closes the gap before hitting
-                    const dmg = CombatEngine.calculateDamage(this.playerState.stats.strength, 'NORMAL');
-                    this.applyDamageToEnemy(dmg);
-                });
+            const chargeRange = CombatEngine.getChargeRange(this.playerState.stats.dexterity);
+            const distance = this.getDistance();
+            const willReach = distance <= chargeRange;
+
+            if (willReach) {
+                // Close the gap fully and land a guaranteed hit
+                this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
+                    .then(() => {
+                        // CHARGE deals the same damage as NORMAL — distinction is
+                        // purely movement: it closes the gap before hitting
+                        const dmg = CombatEngine.calculateDamage(this.playerState.stats.strength, 'NORMAL');
+                        this.logBox.log(`You crash into ${this.enemyIdentity.name}!`);
+                        this.applyDamageToEnemy(dmg);
+                    });
+            } else {
+                // Lunge falls short — player moves their max range but hits nothing
+                const MIN_GRID_X = -8;
+                const whiffGridX = Phaser.Math.Clamp(
+                    this.playerEntity.gridX + chargeRange,
+                    MIN_GRID_X,
+                    this.enemyEntity.gridX - 1
+                );
+
+                this.playerEntity.animateToGrid(whiffGridX, 300, () => this.updateDynamicCamera(0))
+                    .then(() => {
+                        this.logBox.log(`You lunged but fell short! You're now exposed.`);
+                        this.showFloatingText(this.playerEntity.x, this.playerEntity.y, 'WHIFF', '#cbd5e1');
+                        this.time.delayedCall(800, () => this.processEnemyTurn());
+                    });
+            }
         }
         else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
             const hits = CombatEngine.calculateHit(
@@ -337,7 +362,6 @@ export default class CombatScene extends Phaser.Scene {
             if (this.currentEnemyHp <= 0) {
                 this.logBox.log(`Victory! Leaving arena...`);
 
-                // 🔥 GLITCH FIX: Sync localized stats back to global Zustand store!
                 usePlayerStore.getState().updateSecondaryStats({
                     hp: this.playerState.secondaryStats.hp,
                     stamina: this.playerState.secondaryStats.stamina
@@ -361,7 +385,6 @@ export default class CombatScene extends Phaser.Scene {
         if (this.currentEnemyStamina <= 0) {
             this.logBox.log(`${this.enemyIdentity.name} is exhausted and forced to rest!`);
 
-            //so stamina won't go above max
             this.currentEnemyStamina = Math.min(
                 this.enemyTemplate.baseStamina,
                 this.currentEnemyStamina + CombatEngine.getRestRecovery()
@@ -379,9 +402,7 @@ export default class CombatScene extends Phaser.Scene {
                 this.enemyEntity.animateToGrid(this.enemyEntity.gridX - 1, 400, () => this.updateDynamicCamera(0))
                     .then(() => this.startPlayerTurn());
             } else {
-                // 🔥 GLITCH FIX: Enemy plays by Engine rules for Attack
-                this.currentEnemyStamina -= CombatEngine.getActionCost('NORMAL');
-
+                this.currentEnemyStamina = Math.max(0, this.currentEnemyStamina - CombatEngine.getActionCost('NORMAL'));
                 this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
 
                 const hits = CombatEngine.calculateHit(this.enemyTemplate.stats.precision, this.playerState.stats.guard, 'NORMAL');
@@ -408,7 +429,6 @@ export default class CombatScene extends Phaser.Scene {
             if (this.playerState.secondaryStats.hp.current <= 0) {
                 this.turnState = 'LOCKED';
 
-                // 🔥 GLITCH FIX: Handle the Death State cleanly
                 this.logBox.log(`YOU DIED! Game Over.`);
                 this.showFloatingText(this.playerEntity.x, this.playerEntity.y, 'DEFEATED', '#7e87a2');
 
@@ -416,7 +436,7 @@ export default class CombatScene extends Phaser.Scene {
                     this.cameras.main.fadeOut(500);
                     this.uiCamera.fadeOut(500);
                     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-                        useMapStore.getState().clearMap(); // Wipe roguelike progress
+                        useMapStore.getState().clearMap();
                         this.scene.start(SceneKeys.MainMenu);
                     });
                 });
