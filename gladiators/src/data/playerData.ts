@@ -5,6 +5,7 @@ import { type StatKey, type Expression } from '../types/models';
 
 export interface PlayerData {
   name: string;
+  gold: number;
   appearance: {
     skinColor: number;
     hairColor: number;
@@ -28,11 +29,14 @@ export interface PlayerData {
 interface PlayerStoreState extends PlayerData {
   setPlayerData: (data: Partial<PlayerData>) => void;
   updateSecondaryStats: (stats: Partial<PlayerData['secondaryStats']>) => void;
+  addGold: (amount: number) => void;    
+  spendGold: (amount: number) => boolean; // — returns false if insufficient
 }
 
 // 2. Create the Zustand Store
-export const usePlayerStore = createStore<PlayerStoreState>((set) => ({
+export const usePlayerStore = createStore<PlayerStoreState>((set, get) => ({
   name: '',
+  gold: 0,
   appearance: {
     skinColor: 0x3498db,
     hairColor: 0x8B4513,
@@ -55,9 +59,21 @@ export const usePlayerStore = createStore<PlayerStoreState>((set) => ({
   
   // Action to merge top-level data
   setPlayerData: (data) => set((state) => ({ ...state, ...data })),
+
+  
   
   // Action to specifically merge secondary stats (like taking damage)
   updateSecondaryStats: (stats) => set((state) => ({
       secondaryStats: { ...state.secondaryStats, ...stats }
-  }))
+  })),
+
+  // 🔥 NEW — call this when enemy is defeated
+  addGold: (amount) => set((state) => ({ gold: state.gold + amount })),
+
+  // 🔥 NEW — call this in shop, returns false if player can't afford it
+  spendGold: (amount) => {
+    if (get().gold < amount) return false;
+    set((state) => ({ gold: state.gold - amount }));
+    return true;
+  }
 }));

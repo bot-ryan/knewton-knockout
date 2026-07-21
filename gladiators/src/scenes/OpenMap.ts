@@ -4,20 +4,21 @@ import { SpireMapGenerator } from '../gameinit/MapGenerator';
 import { SceneKeys } from '../data/SceneKeys';
 import { usePlayerStore, type PlayerData } from '../data/PlayerData';
 import { useMapStore } from '../data/MapData';
+import { StatChip } from '../components/ui/StatChip';
 
-import { 
-    BEGINNER_ENEMY_POOL, 
-    STANDARD_ENEMY_POOL, 
-    ELITE_ENEMY_POOL, 
-    BOSS_ENEMY_POOL, 
-    type EnemyTemplate 
+import {
+    BEGINNER_ENEMY_POOL,
+    STANDARD_ENEMY_POOL,
+    ELITE_ENEMY_POOL,
+    BOSS_ENEMY_POOL,
+    type EnemyTemplate
 } from '../data/Enemy/EnemyArchetypes';
 
 export class OpenMap extends Phaser.Scene {
     private isDragging = false;
     private dragStartX = 0;
     private camStartX = 0;
-    private activePlayer?: PlayerData; 
+    private activePlayer?: PlayerData;
 
     constructor() {
         super(SceneKeys.OpenMap);
@@ -30,35 +31,53 @@ export class OpenMap extends Phaser.Scene {
     }
 
     create() {
-        const PADDING_X = 140; 
+        const PADDING_X = 140;
         const PADDING_Y = 90;
         const JITTER = 20;
         const startX = 150;
         const startY = (this.scale.height / 2) - (3 * PADDING_Y);
 
+        const hpChip = new StatChip(
+            this, 20, 20, 'hp',
+            this.activePlayer?.secondaryStats.hp.current ?? 0,
+            this.activePlayer?.secondaryStats.hp.max ?? 0
+        ).setScrollFactor(0);
+
+        const staminaChip = new StatChip(
+            this, 130, 20, 'stamina',
+            this.activePlayer?.secondaryStats.stamina.current ?? 0,
+            this.activePlayer?.secondaryStats.stamina.max ?? 0
+        ).setScrollFactor(0);
+
+        const goldChip = new StatChip(
+            this, 240, 20, 'gold',
+            this.activePlayer?.gold ?? 0
+            // no max — gold has no cap
+        ).setScrollFactor(0);
+
         if (useMapStore.getState().nodes.length === 0) {
             const generator = new SpireMapGenerator();
             const rawNodes = generator.generate();
-            
+
             const nodesWithVisuals = rawNodes.map(node => ({
                 ...node,
                 vX: startX + (node.x * PADDING_X) + (Math.random() * JITTER),
                 vY: startY + (node.y * PADDING_Y) + (Math.random() * JITTER)
             }));
-            
+
             useMapStore.getState().setMapData(nodesWithVisuals);
         }
 
         const { nodes: visualNodes, currentNodeId } = useMapStore.getState();
 
         // Determine Map Width for Camera Bounds
-        const maxVX = Math.max(...visualNodes.map(n => n.vX)) + 200; 
+        const maxVX = Math.max(...visualNodes.map(n => n.vX)) + 200;
         this.cameras.main.setBounds(0, 0, maxVX, this.scale.height);
 
         // Draw Lines
         const graphics = this.add.graphics();
         graphics.lineStyle(2, 0x444444, 0.8);
-        
+
         visualNodes.forEach(node => {
             node.nextNodes.forEach((nextId: string) => {
                 const nextNode = visualNodes.find(n => n.id === nextId);
@@ -74,27 +93,27 @@ export class OpenMap extends Phaser.Scene {
         visualNodes.forEach(node => {
             const isSelectable = this.isNodeSelectable(node, visualNodes, currentNodeId);
             const isCurrentNode = node.id === currentNodeId;
-            
+
             const iconAlpha = isSelectable || isCurrentNode ? 1 : 0.3;
 
             const icon = this.add.text(node.vX, node.vY, String(node.type), { fontSize: '36px' })
                 .setOrigin(0.5)
                 .setAlpha(iconAlpha);
-            
+
             if (isCurrentNode) {
-                this.add.text(node.vX, node.vY - 35, 'YOU', { 
-                    fontSize: '14px', fontStyle: 'bold', color: '#fbbf24', backgroundColor: '#000000', padding: {x: 4, y: 2}
+                this.add.text(node.vX, node.vY - 35, 'YOU', {
+                    fontSize: '14px', fontStyle: 'bold', color: '#fbbf24', backgroundColor: '#000000', padding: { x: 4, y: 2 }
                 }).setOrigin(0.5);
             }
 
             if (isSelectable) {
                 icon.setInteractive({ useHandCursor: true });
-                
+
                 icon.on('pointerover', () => icon.setScale(1.2));
                 icon.on('pointerout', () => icon.setScale(1.0));
 
                 icon.on('pointerdown', (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
-                    event.stopPropagation(); 
+                    event.stopPropagation();
                     this.handleNodeEncounter(node);
                 });
             }
@@ -117,14 +136,14 @@ export class OpenMap extends Phaser.Scene {
             this.isDragging = false;
         });
 
-        // UI Header
-        this.add.text(20, 20, `${this.activePlayer?.name} | HEALTH: ${this.activePlayer?.secondaryStats.hp.current}/${this.activePlayer?.secondaryStats.hp.max}`, { 
-            color: '#ffffff', 
-            fontSize: '16px',
-            fontFamily: 'Verdana',
-            backgroundColor: '#141a2a',
-            padding: { x: 10, y: 5 }
-        }).setScrollFactor(0).setStroke('#22304c', 2);
+        // // UI Header
+        // this.add.text(20, 20, `${this.activePlayer?.name} | HEALTH: ${this.activePlayer?.secondaryStats.hp.current}/${this.activePlayer?.secondaryStats.hp.max}`, {
+        //     color: '#ffffff',
+        //     fontSize: '16px',
+        //     fontFamily: 'Verdana',
+        //     backgroundColor: '#141a2a',
+        //     padding: { x: 10, y: 5 }
+        // }).setScrollFactor(0).setStroke('#22304c', 2);
     }
 
     private isNodeSelectable(node: any, allNodes: any[], currentNodeId: string | null): boolean {
