@@ -29,7 +29,6 @@ export interface PlayerData {
   equipment: {
     weapon: Equipment | null;
     offhand: Equipment | null;
-    armour: Equipment | null;
     accessory: Equipment | null;
   }
 }
@@ -71,7 +70,6 @@ export const usePlayerStore = createStore<PlayerStoreState>((set, get) => ({
   equipment: {
     weapon: null,
     offhand: null,
-    armour: null,
     accessory: null
   },
 
