@@ -370,7 +370,12 @@ export default class CombatScene extends Phaser.Scene {
                 this.time.delayedCall(1500, () => {
                     this.cameras.main.fadeOut(250);
                     this.uiCamera.fadeOut(250);
-                    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(SceneKeys.OpenMap));
+                    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                        // 🔥 Go to RewardScene instead of OpenMap directly
+                        this.scene.start(SceneKeys.RewardScene, {
+                            enemyTemplate: this.enemyTemplate
+                        });
+                    });
                 });
             } else {
                 this.time.delayedCall(500, () => this.processEnemyTurn());

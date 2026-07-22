@@ -1,5 +1,6 @@
 
 
+
 /**
  * SceneKeys.ts
  * Centralized registry of all scene identifiers. 
@@ -13,7 +14,8 @@ export const SceneKeys = {
     CombatScene: 'CombatScene',
     OpenMap: 'OpenMap',
     GameOver: 'GameOver', 
-    Credits: 'Credits' 
+    Credits: 'Credits',
+    RewardScene: 'RewardScene',
 } as const; 
 
 export type SceneKeys = typeof SceneKeys[keyof typeof SceneKeys]; 
