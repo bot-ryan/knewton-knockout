@@ -317,7 +317,7 @@ export default class CombatScene extends Phaser.Scene {
                     .then(() => {
                         this.logBox.log(`You lunged but fell short! You're now exposed.`);
                         this.showFloatingText(this.playerEntity.x, this.playerEntity.y, 'WHIFF', '#cbd5e1');
-                        this.time.delayedCall(500, () => this.processEnemyTurn());
+                        this.time.delayedCall(300, () => this.processEnemyTurn());
                     });
             }
         }
@@ -334,7 +334,7 @@ export default class CombatScene extends Phaser.Scene {
             } else {
                 this.logBox.log(`You missed!`);
                 this.showFloatingText(this.enemyEntity.x, this.enemyEntity.y, 'MISS', '#cbd5e1');
-                this.time.delayedCall(500, () => this.processEnemyTurn());
+                this.time.delayedCall(300, () => this.processEnemyTurn());
             }
         }
         else if (type === 'REST') {
@@ -347,7 +347,7 @@ export default class CombatScene extends Phaser.Scene {
             );
 
             this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
-            this.time.delayedCall(500, () => this.processEnemyTurn());
+            this.time.delayedCall(300, () => this.processEnemyTurn());
         }
     }
 
@@ -396,13 +396,13 @@ export default class CombatScene extends Phaser.Scene {
             );
 
             this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
-            this.time.delayedCall(500, () => this.startPlayerTurn());
+            this.time.delayedCall(300, () => this.startPlayerTurn());
             return;
         }
 
         this.logBox.log(`${this.enemyIdentity.name} makes a move...`);
 
-        this.time.delayedCall(500, () => {
+        this.time.delayedCall(300, () => {
             if (this.getDistance() > 1) {
                 this.enemyEntity.animateToGrid(this.enemyEntity.gridX - 1, 400, () => this.updateDynamicCamera(0))
                     .then(() => this.startPlayerTurn());
@@ -417,7 +417,7 @@ export default class CombatScene extends Phaser.Scene {
                 } else {
                     this.logBox.log(`${this.enemyIdentity.name} swung, but you DODGED!`);
                     this.showFloatingText(this.playerEntity.x, this.playerEntity.y, 'DODGE', '#3b82f6');
-                    this.time.delayedCall(500, () => this.startPlayerTurn());
+                    this.time.delayedCall(300, () => this.startPlayerTurn());
                 }
             }
         });
