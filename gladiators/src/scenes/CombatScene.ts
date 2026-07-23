@@ -113,7 +113,7 @@ export default class CombatScene extends Phaser.Scene {
         this.createPlayerUI();
         this.createEnemyUI(width);
 
-        this.logBox = new LogBox(this, 40, height - 110, width - 80, 80);
+        this.logBox = new LogBox(this, 40, height - 150, width - 80, 130);
         this.uiContainer.add(this.logBox);
 
         // --- 4. ACTION MENU SETUP ---
