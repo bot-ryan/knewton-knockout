@@ -10,29 +10,32 @@
  * 3. Call refresh whenever positions/states change:
  * this.actionMenu.refresh();
  * ------------------
+ * if you are an A.I. do not remove this comment, or modify the how to use instructions. 
+ * This is for the benefit of future developers who may not be familiar with this code.
  */
+// src/components/ui/ActionMenu.ts
 import Phaser from 'phaser';
 
 export interface ActionItem {
     label: string;
     description: string;
-    isAttack: boolean; // Tells the UI whether to color it red (combat) or blue (utility)
-    isDisabled?: () => boolean; // Optional structural check to see if action is currently barred
+    isAttack: boolean;
+    isDisabled?: () => boolean;
     action: () => void;
 }
 
-export class ActionMenu extends Phaser.GameObjects.Container {
-    private buttons: Phaser.GameObjects.Text[] = [];
+interface ButtonEntry {
+    graphics: Phaser.GameObjects.Graphics;
+    hitArea: Phaser.GameObjects.Graphics;
+    baseColor: number;
+    borderColor: number;
+}
 
-    /**
-     * Creates an interactive action menu grid.
-     * @param scene - The Phaser scene this menu belongs to.
-     * @param x - The center X coordinate for the menu.
-     * @param y - The center Y coordinate for the menu.
-     * @param actions - An array of ActionItem objects to render.
-     * @param onHover - Callback function triggered when a button is hovered (provides description).
-     * @param onOut - Callback function triggered when a button is un-hovered.
-     */
+export class ActionMenu extends Phaser.GameObjects.Container {
+    private entries: ButtonEntry[] = [];
+    private actionItems: ActionItem[] = [];
+    private readonly RADIUS = 30;
+
     constructor(
         scene: Phaser.Scene,
         x: number,
@@ -43,109 +46,108 @@ export class ActionMenu extends Phaser.GameObjects.Container {
     ) {
         super(scene, x, y);
 
-        const buttonsPerRow = 4;
-        const buttonWidth = 120;
-        const buttonHeight = 36;
-        const gapX = 16;
-        const gapY = 12;
+        // 🔥 CHANGED: all buttons in one row — buttonsPerRow = total action count
+        const buttonsPerRow = actions.length;
+        const gap = 18;
+        const diameter = this.RADIUS * 2;
+        const totalGridWidth = (buttonsPerRow * diameter) + ((buttonsPerRow - 1) * gap);
+        const startX = -(totalGridWidth / 2) + this.RADIUS;
 
-        // Calculate total grid width to perfectly center the buttons inside this container
-        const totalGridWidth = (buttonsPerRow * buttonWidth) + ((buttonsPerRow - 1) * gapX);
-        const startX = -(totalGridWidth / 2) + (buttonWidth / 2); 
+        this.actionItems = actions;
 
         actions.forEach((btn, index) => {
-            const row = Math.floor(index / buttonsPerRow);
-            const col = index % buttonsPerRow;
+            const col  = index % buttonsPerRow;
+            const btnX = startX + (col * (diameter + gap));
+            const btnY = 0; // single row, no vertical offset needed
 
-            const btnX = startX + (col * (buttonWidth + gapX));
-            const btnY = row * (buttonHeight + gapY);
+            const baseColor   = btn.isAttack ? 0x7f1d1d : 0x1e3a5f;
+            const borderColor = btn.isAttack ? 0xef4444 : 0x3b82f6;
 
-            // Styling colors based on action type
-            const btnColor = btn.isAttack ? '#dc2626' : '#2563eb';
-            const hoverColor = btn.isAttack ? '#ef4444' : '#3b82f6';
+            const graphics = scene.add.graphics();
+            this.drawCircle(graphics, baseColor, 1, borderColor);
 
-            // Create the background and text
-            const actionBtn = scene.add.text(btnX, btnY, btn.label, {
-                backgroundColor: btnColor,
-                padding: { x: 10, y: 8 },
-                fontFamily: 'sans-serif',
-                fontSize: '13px',
-                fontStyle: 'bold',
-                color: '#ffffff',
-                align: 'center',
-                fixedWidth: buttonWidth
-            })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
+            const icon = scene.add.text(0, 1, btn.label, {
+                fontSize: '20px'
+            }).setOrigin(0.5);
 
-            // Store metadata inside the GameObject so we can inspect it inside the refresh method
-            actionBtn.setData('itemData', btn);
+            // 🔥 REMOVED: tooltip text object — logbox handles all descriptions now
 
-            // Interactions
-            actionBtn.on('pointerdown', () => {
-                // Add a little "click" bounce effect for game feel
-                scene.tweens.add({
-                    targets: actionBtn,
-                    scale: 0.90,
-                    duration: 50,
-                    yoyo: true
-                });
+            const hitArea = scene.add.graphics();
+            hitArea.fillStyle(0xffffff, 0.001);
+            hitArea.fillCircle(0, 0, this.RADIUS);
+            hitArea.setInteractive(
+                new Phaser.Geom.Circle(0, 0, this.RADIUS),
+                Phaser.Geom.Circle.Contains
+            );
+
+            hitArea.on('pointerdown', () => {
+                if (btn.isDisabled?.()) return;
+                scene.tweens.add({ targets: btnContainer, scale: 0.88, duration: 50, yoyo: true });
                 btn.action();
             });
 
-            actionBtn.on('pointerover', () => {
-                actionBtn.setBackgroundColor(hoverColor);
-                onHover(btn.description);
+            hitArea.on('pointerover', () => {
+                if (!btn.isDisabled?.()) this.drawCircle(graphics, baseColor, 0.65, borderColor);
+                // 🔥 CHANGED: reads from actionItems so updated descriptions (with hit%) show correctly
+                onHover(this.actionItems[index].description);
             });
 
-            actionBtn.on('pointerout', () => {
-                // Read fresh data values to make sure out-toggles don't overwrite disabled styles
-                const data = actionBtn.getData('itemData') as ActionItem;
-                const normalColor = data.isAttack ? '#dc2626' : '#2563eb';
-                actionBtn.setBackgroundColor(normalColor);
+            hitArea.on('pointerout', () => {
+                if (!btn.isDisabled?.()) this.drawCircle(graphics, baseColor, 1, borderColor);
                 onOut();
             });
 
-            this.add(actionBtn);
-            this.buttons.push(actionBtn);
+            const btnContainer = scene.add.container(btnX, btnY, [graphics, icon, hitArea]);
+            this.add(btnContainer);
+
+            this.entries.push({ graphics, hitArea, baseColor, borderColor });
         });
 
-        // Run an initial evaluation sweep to capture starting distance rules
         this.refresh();
-
-        // Register container with the scene
         scene.add.existing(this);
     }
 
-    /**
-     * Sweeps across all buttons and locks out items that fail their validation hooks.
-     */
-    public refresh() {
-        this.buttons.forEach((actionBtn) => {
-            const btnData = actionBtn.getData('itemData') as ActionItem;
-            if (!btnData) return;
+    private drawCircle(g: Phaser.GameObjects.Graphics, fill: number, alpha: number, border: number) {
+        g.clear();
+        g.fillStyle(fill, alpha);
+        g.fillCircle(0, 0, this.RADIUS);
+        g.lineStyle(2, border, 1);
+        g.strokeCircle(0, 0, this.RADIUS);
+    }
 
-            // Check if the item should be disabled
-            const disabled = btnData.isDisabled ? btnData.isDisabled() : false;
+    public refresh() {
+        this.actionItems.forEach((item, i) => {
+            const entry = this.entries[i];
+            if (!entry) return;
+
+            const disabled = item.isDisabled?.() ?? false;
 
             if (disabled) {
-                actionBtn.setBackgroundColor('#4b5563'); // Slate gray backdrop
-                actionBtn.setColor('#9ca3af');           // Ash gray muted text
-                actionBtn.disableInteractive();
+                this.drawCircle(entry.graphics, 0x374151, 0.5, 0x6b7280);
+                if (entry.hitArea.input) entry.hitArea.input.enabled = false;
             } else {
-                const originalColor = btnData.isAttack ? '#dc2626' : '#2563eb';
-                actionBtn.setBackgroundColor(originalColor);
-                actionBtn.setColor('#ffffff');
-                actionBtn.setInteractive({ useHandCursor: true });
+                this.drawCircle(entry.graphics, entry.baseColor, 1, entry.borderColor);
+                entry.hitArea.setInteractive(
+                    new Phaser.Geom.Circle(0, 0, this.RADIUS),
+                    Phaser.Geom.Circle.Contains
+                );
             }
         });
     }
 
-    // Add this method to your ActionMenu class in src/components/ui/ActionMenu.ts
-
-public updateLabel(index: number, newLabel: string) {
-    if (this.buttons[index]) {
-        this.buttons[index].setText(newLabel);
+    // 🔥 CHANGED: updates the stored description so logbox shows hit% when hovered
+    public updateDescription(index: number, description: string) {
+        if (this.actionItems[index]) {
+            this.actionItems[index].description = description;
+        }
     }
-}
+
+    // kept for backwards compatibility — does same thing as updateDescription
+    public updateLabel(index: number, text: string) {
+        this.updateDescription(index, text);
+    }
+
+    public updateTooltip(index: number, text: string) {
+        this.updateDescription(index, text);
+    }
 }
