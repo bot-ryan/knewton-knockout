@@ -120,10 +120,10 @@ export default class CombatScene extends Phaser.Scene {
         const buttonActions: ActionItem[] = [
             { label: '⬅️', description: 'Move Left — dash to the left.',               isAttack: false, action: () => this.movePlayer('LEFT') },
             { label: '➡️', description: 'Move Right — dash to the right.',             isAttack: false, action: () => this.movePlayer('RIGHT') },
-            { label: '⚡', description: 'Quick Strike — fast, low damage.',             isAttack: true,  isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('QUICK') },
-            { label: '⚔️', description: 'Normal Strike — balanced attack.',            isAttack: true,  isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('NORMAL') },
-            { label: '💥', description: 'Power Strike — slow, high damage.',           isAttack: true,  isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('POWER') },
-            { label: '🏃', description: 'Charge — lunge forward and strike.',          isAttack: true,  isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
+            { label: '⚡', description: 'will be updated...',             isAttack: true,  isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('QUICK') },
+            { label: '⚔️', description: 'will be updated...',            isAttack: true,  isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('NORMAL') },
+            { label: '💥', description: 'will be updated...',           isAttack: true,  isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('POWER') },
+            { label: '🏃', description: 'will be updated...',          isAttack: true,  isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
             { label: '💤', description: 'Rest — recover stamina.',                     isAttack: false, action: () => this.executeAction('REST') }
         ];
 
