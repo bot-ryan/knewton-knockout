@@ -13,6 +13,9 @@ import { ButtonCreator } from '../components/ButtonCreator';
 import { usePlayerStore } from '../data/PlayerData';
 import { useMapStore } from '../data/MapData';
 import { SceneKeys } from '../data/SceneKeys';
+import { PanelOverlay } from '../components/ui/PanelOverlay';
+
+
 
 interface CombatPayload {
     character: PlayerData;
@@ -80,6 +83,7 @@ export default class CombatScene extends Phaser.Scene {
 
     create() {
         const { width, height } = this.scale;
+        
         this.worldCenterX = width / 2;
 
         this.uiContainer = this.add.container(0, 0);
@@ -118,13 +122,13 @@ export default class CombatScene extends Phaser.Scene {
 
         // --- 4. ACTION MENU SETUP ---
         const buttonActions: ActionItem[] = [
-            { label: '⬅️', description: 'Move Left — dash to the left.',               isAttack: false, action: () => this.movePlayer('LEFT') },
-            { label: '➡️', description: 'Move Right — dash to the right.',             isAttack: false, action: () => this.movePlayer('RIGHT') },
-            { label: '⚡', description: 'will be updated...',             isAttack: true,  isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('QUICK') },
-            { label: '⚔️', description: 'will be updated...',            isAttack: true,  isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('NORMAL') },
-            { label: '💥', description: 'will be updated...',           isAttack: true,  isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('POWER') },
-            { label: '🏃', description: 'will be updated...',          isAttack: true,  isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
-            { label: '💤', description: 'Rest — recover stamina.',                     isAttack: false, action: () => this.executeAction('REST') }
+            { label: '⬅️', description: 'Move Left — dash to the left.', isAttack: false, action: () => this.movePlayer('LEFT') },
+            { label: '➡️', description: 'Move Right — dash to the right.', isAttack: false, action: () => this.movePlayer('RIGHT') },
+            { label: '⚡', description: 'will be updated...', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('QUICK') },
+            { label: '⚔️', description: 'will be updated...', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('NORMAL') },
+            { label: '💥', description: 'will be updated...', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('POWER') },
+            { label: '🏃', description: 'will be updated...', isAttack: true, isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
+            { label: '💤', description: 'Rest — recover stamina.', isAttack: false, action: () => this.executeAction('REST') }
         ];
 
         // 🔥 CHANGED: placed just above the logbox (logbox top is height - 150, radius is 30, gap of 10)
@@ -153,20 +157,20 @@ export default class CombatScene extends Phaser.Scene {
         const bg = this.add.rectangle(0, 0, width, height, 0x000000, 0.85).setOrigin(0);
         vsContainer.add(bg);
 
-        const titleText  = this.add.text(width / 2, 80, "TALE OF THE TAPE", { fontFamily: 'Verdana', fontSize: '32px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        const titleText = this.add.text(width / 2, 80, "TALE OF THE TAPE", { fontFamily: 'Verdana', fontSize: '32px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
         const playerText = this.add.text(width / 2 - 200, 150, this.playerState.name.toUpperCase(), { fontFamily: 'Verdana', fontSize: '24px', color: '#3b82f6', fontStyle: 'bold' }).setOrigin(0.5);
-        const vsText     = this.add.text(width / 2, 150, "VS", { fontFamily: 'Verdana', fontSize: '20px', color: '#7e87a2', fontStyle: 'italic' }).setOrigin(0.5);
-        const enemyText  = this.add.text(width / 2 + 200, 150, this.enemyTemplate.displayName.toUpperCase(), { fontFamily: 'Verdana', fontSize: '24px', color: '#ef4444', fontStyle: 'bold' }).setOrigin(0.5);
+        const vsText = this.add.text(width / 2, 150, "VS", { fontFamily: 'Verdana', fontSize: '20px', color: '#7e87a2', fontStyle: 'italic' }).setOrigin(0.5);
+        const enemyText = this.add.text(width / 2 + 200, 150, this.enemyTemplate.displayName.toUpperCase(), { fontFamily: 'Verdana', fontSize: '24px', color: '#ef4444', fontStyle: 'bold' }).setOrigin(0.5);
 
         vsContainer.add([titleText, playerText, vsText, enemyText]);
 
         const statRows = [
-            { label: 'MAX HP',    pVal: this.playerState.secondaryStats.hp.max,     eVal: this.enemyTemplate.baseHp },
-            { label: 'STAMINA',   pVal: this.playerState.secondaryStats.stamina.max, eVal: this.enemyTemplate.baseStamina },
-            { label: 'STRENGTH',  pVal: this.playerState.stats.strength,             eVal: this.enemyTemplate.stats.strength },
-            { label: 'DEXTERITY', pVal: this.playerState.stats.dexterity,            eVal: this.enemyTemplate.stats.dexterity },
-            { label: 'PRECISION', pVal: this.playerState.stats.precision,            eVal: this.enemyTemplate.stats.precision },
-            { label: 'GUARD',     pVal: this.playerState.stats.guard,                eVal: this.enemyTemplate.stats.guard }
+            { label: 'MAX HP', pVal: this.playerState.secondaryStats.hp.max, eVal: this.enemyTemplate.baseHp },
+            { label: 'STAMINA', pVal: this.playerState.secondaryStats.stamina.max, eVal: this.enemyTemplate.baseStamina },
+            { label: 'STRENGTH', pVal: this.playerState.stats.strength, eVal: this.enemyTemplate.stats.strength },
+            { label: 'DEXTERITY', pVal: this.playerState.stats.dexterity, eVal: this.enemyTemplate.stats.dexterity },
+            { label: 'PRECISION', pVal: this.playerState.stats.precision, eVal: this.enemyTemplate.stats.precision },
+            { label: 'GUARD', pVal: this.playerState.stats.guard, eVal: this.enemyTemplate.stats.guard }
         ];
 
         const spacing = 45;
@@ -178,14 +182,14 @@ export default class CombatScene extends Phaser.Scene {
 
         statRows.forEach((stat, index) => {
             const y = 220 + (index * spacing);
-            const labelText  = this.add.text(width / 2, y, stat.label, { fontFamily: 'Verdana', fontSize: '18px', color: '#9aa4b2', fontStyle: 'bold' }).setOrigin(0.5);
+            const labelText = this.add.text(width / 2, y, stat.label, { fontFamily: 'Verdana', fontSize: '18px', color: '#9aa4b2', fontStyle: 'bold' }).setOrigin(0.5);
             const pComp = getComparison(stat.pVal, stat.eVal);
             const eComp = getComparison(stat.eVal, stat.pVal);
 
-            const pValText   = this.add.text(width / 2 - 200, y, String(stat.pVal), { fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(1, 0.5);
+            const pValText = this.add.text(width / 2 - 200, y, String(stat.pVal), { fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(1, 0.5);
             const pArrowText = this.add.text(width / 2 - 160, y, pComp.symbol, { fontFamily: 'sans-serif', fontSize: '18px', color: pComp.color }).setOrigin(0.5);
             const eArrowText = this.add.text(width / 2 + 160, y, eComp.symbol, { fontFamily: 'sans-serif', fontSize: '18px', color: eComp.color }).setOrigin(0.5);
-            const eValText   = this.add.text(width / 2 + 200, y, String(stat.eVal), { fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0, 0.5);
+            const eValText = this.add.text(width / 2 + 200, y, String(stat.eVal), { fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0, 0.5);
 
             vsContainer.add([labelText, pValText, pArrowText, eArrowText, eValText]);
         });
@@ -226,10 +230,10 @@ export default class CombatScene extends Phaser.Scene {
 
     // 🔥 CHANGED: updates stored descriptions so hovering the button shows hit% in logbox
     private updateActionLabels() {
-        const prec  = this.playerState.stats.precision;
+        const prec = this.playerState.stats.precision;
         const guard = this.enemyTemplate.stats.guard;
         const chargeRange = CombatEngine.getChargeRange(this.playerState.stats.dexterity);
-        const willReach   = this.getDistance() <= chargeRange;
+        const willReach = this.getDistance() <= chargeRange;
 
         this.actionMenu.updateDescription(2, `Quick Strike — fast, low damage. Hit chance: ${CombatEngine.getHitChance(prec, guard, 'QUICK')}%`);
         this.actionMenu.updateDescription(3, `Normal Strike — balanced attack. Hit chance: ${CombatEngine.getHitChance(prec, guard, 'NORMAL')}%`);
@@ -289,8 +293,8 @@ export default class CombatScene extends Phaser.Scene {
 
         if (type === 'CHARGE') {
             const chargeRange = CombatEngine.getChargeRange(this.playerState.stats.dexterity);
-            const distance    = this.getDistance();
-            const willReach   = distance <= chargeRange;
+            const distance = this.getDistance();
+            const willReach = distance <= chargeRange;
 
             if (willReach) {
                 this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
@@ -356,7 +360,7 @@ export default class CombatScene extends Phaser.Scene {
                 this.logBox.log(`Victory! Leaving arena...`);
 
                 usePlayerStore.getState().updateSecondaryStats({
-                    hp:      this.playerState.secondaryStats.hp,
+                    hp: this.playerState.secondaryStats.hp,
                     stamina: this.playerState.secondaryStats.stamina
                 });
 
@@ -444,12 +448,12 @@ export default class CombatScene extends Phaser.Scene {
             fontFamily: 'sans-serif', fontSize: '22px', color: '#ffffff', fontStyle: 'bold'
         });
 
-        const hp   = this.playerState.secondaryStats.hp;
-        const mp   = this.playerState.secondaryStats.mp;
+        const hp = this.playerState.secondaryStats.hp;
+        const mp = this.playerState.secondaryStats.mp;
         const stam = this.playerState.secondaryStats.stamina;
 
-        this.playerHpBar      = new StatBar(this, startX, startY + 35, this.barWidth, this.barHeight, 0xef4444);
-        this.playerMpBar      = new StatBar(this, startX, startY + 35 + gap, this.barWidth, this.barHeight, 0x3b82f6);
+        this.playerHpBar = new StatBar(this, startX, startY + 35, this.barWidth, this.barHeight, 0xef4444);
+        this.playerMpBar = new StatBar(this, startX, startY + 35 + gap, this.barWidth, this.barHeight, 0x3b82f6);
         this.playerStaminaBar = new StatBar(this, startX, startY + 35 + (gap * 2), this.barWidth, this.barHeight, 0x10b981);
 
         this.playerHpBar.update(hp.current, hp.max);
@@ -467,8 +471,8 @@ export default class CombatScene extends Phaser.Scene {
 
         const baseMp = (this.enemyTemplate as any).baseMp || 0;
 
-        this.enemyHpBar      = new StatBar(this, this.enemyUIX, this.enemyUIY + 35, this.barWidth, this.barHeight, 0xef4444);
-        this.enemyMpBar      = new StatBar(this, this.enemyUIX, this.enemyUIY + 35 + gap, this.barWidth, this.barHeight, 0x3b82f6);
+        this.enemyHpBar = new StatBar(this, this.enemyUIX, this.enemyUIY + 35, this.barWidth, this.barHeight, 0xef4444);
+        this.enemyMpBar = new StatBar(this, this.enemyUIX, this.enemyUIY + 35 + gap, this.barWidth, this.barHeight, 0x3b82f6);
         this.enemyStaminaBar = new StatBar(this, this.enemyUIX, this.enemyUIY + 35 + (gap * 2), this.barWidth, this.barHeight, 0x10b981);
 
         this.enemyHpBar.update(this.currentEnemyHp, this.enemyTemplate.baseHp);
