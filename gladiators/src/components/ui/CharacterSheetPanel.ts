@@ -22,7 +22,7 @@ export class CharacterSheetPanel {
         y?: number,
         uiContainer?: Phaser.GameObjects.Container
     ) {
-        const btnX = x ?? scene.scale.width  - 50;
+        const btnX = x ?? scene.scale.width - 50;
         const btnY = y ?? scene.scale.height - 50;
         const radius = 28;
 
@@ -52,7 +52,7 @@ export class CharacterSheetPanel {
         );
 
         btnHit.on('pointerover', () => drawCircle(true));
-        btnHit.on('pointerout',  () => drawCircle(false));
+        btnHit.on('pointerout', () => drawCircle(false));
         btnHit.on('pointerdown', () => CharacterSheetPanel.open(scene, player, uiContainer));
 
         btnContainer.add([btnCircle, btnIcon, btnHit]);
@@ -86,7 +86,7 @@ export class CharacterSheetPanel {
         }
 
         const cc = panel.contentContainer;
-        const colLeft  = 0;
+        const colLeft = 0;
         const colRight = 240;
         let y = 0;
 
@@ -95,9 +95,9 @@ export class CharacterSheetPanel {
         y += 28;
 
         const vitals = [
-            { label: '❤️  HP',      value: `${player.secondaryStats.hp.current} / ${player.secondaryStats.hp.max}` },
+            { label: '❤️  HP', value: `${player.secondaryStats.hp.current} / ${player.secondaryStats.hp.max}` },
             { label: '⚡ Stamina', value: `${player.secondaryStats.stamina.current} / ${player.secondaryStats.stamina.max}` },
-            { label: '🪙 Gold',    value: `${player.gold}` }
+            { label: '🪙 Gold', value: `${player.gold}` }
         ];
 
         vitals.forEach(row => {
@@ -108,17 +108,17 @@ export class CharacterSheetPanel {
         y += 16;
 
         // --- PRIMARY STATS (left) + EQUIPMENT (right) ---
-        CharacterSheetPanel.addSectionHeader(scene, cc, 'PRIMARY STATS', colLeft,  y);
-        CharacterSheetPanel.addSectionHeader(scene, cc, 'EQUIPMENT',     colRight, y);
+        CharacterSheetPanel.addSectionHeader(scene, cc, 'PRIMARY STATS', colLeft, y);
+        CharacterSheetPanel.addSectionHeader(scene, cc, 'EQUIPMENT', colRight, y);
         y += 28;
 
         const primaryStats = [
-            { label: 'Strength',  value: player.stats.strength },
+            { label: 'Strength', value: player.stats.strength },
             { label: 'Dexterity', value: player.stats.dexterity },
             { label: 'Precision', value: player.stats.precision },
-            { label: 'Guard',     value: player.stats.guard },
-            { label: 'Vitality',  value: player.stats.vitality },
-            { label: 'Arcane',    value: player.stats.arcane }
+            { label: 'Guard', value: player.stats.guard },
+            { label: 'Vitality', value: player.stats.vitality },
+            { label: 'Arcane', value: player.stats.arcane }
         ];
 
         primaryStats.forEach(stat => {
@@ -131,34 +131,126 @@ export class CharacterSheetPanel {
         const equipment = player.equipment ?? { weapon: null, shield: null, accessory: null };
 
         const slots = [
-            { label: '⚔️  Weapon',    item: equipment.weapon },
-            { label: '🛡️  Shield',    item: equipment.shield },
+            { label: '⚔️  Weapon', item: equipment.weapon },
+            { label: '🛡️  Shield', item: equipment.shield },
             { label: '💍 Accessory', item: equipment.accessory }
         ];
 
         slots.forEach(slot => {
-            const itemName  = slot.item ? slot.item.name : 'Empty';
+            const itemName = slot.item ? slot.item.name : 'Empty';
             const itemColor = slot.item ? '#ffffff' : '#4b5563';
             CharacterSheetPanel.addStatRow(scene, cc, slot.label, itemName, colRight, equipY, itemColor);
             equipY += 24;
         });
+
+        // 🔥 NEW: Divider line
+        y += 16;
+        const divider = scene.add.graphics();
+        divider.lineStyle(1, 0x1e293b, 1);
+        divider.moveTo(0, y);
+        divider.lineTo(460, y); // panel width - padding
+        divider.strokePath();
+        cc.add(divider);
+        y += 16;
+
+        // 🔥 NEW: RELICS section
+        CharacterSheetPanel.addSectionHeader(scene, cc, 'RELICS', colLeft, y);
+
+        // Relic count badge e.g. "2 / 5"
+        const relics = player.relics ?? [];
+        const relicCountText = scene.add.text(460, y, `${relics.length} / 5`, {
+            fontFamily: 'Verdana',
+            fontSize: '11px',
+            color: '#64748b',
+            fontStyle: 'bold'
+        }).setOrigin(1, 0);
+        cc.add(relicCountText);
+
+        y += 24;
+
+        const MAX_RELICS = 5;
+
+        if (relics.length === 0) {
+            // Empty state message
+            const emptyText = scene.add.text(0, y, 'No relics collected yet.', {
+                fontFamily: 'Verdana',
+                fontSize: '13px',
+                color: '#4b5563',
+                fontStyle: 'italic'
+            });
+            cc.add(emptyText);
+        } else {
+            // Show each relic as a row
+            relics.forEach((relic, index) => {
+                CharacterSheetPanel.addRelicRow(scene, cc, relic, index, y);
+                y += 28;
+            });
+
+            // Fill remaining empty slots with dashes so player can see capacity
+            for (let i = relics.length; i < MAX_RELICS; i++) {
+                const emptySlot = scene.add.text(0, y, `— Empty slot`, {
+                    fontFamily: 'Verdana',
+                    fontSize: '12px',
+                    color: '#1e293b'
+                });
+                cc.add(emptySlot);
+                y += 28;
+            }
+        }
     }
 
     // --- PRIVATE HELPERS ---
 
-    private static addSectionHeader(
+    // 🔥 NEW: Relic row helper
+    private static addRelicRow(
         scene: Phaser.Scene,
         container: Phaser.GameObjects.Container,
-        label: string,
-        x: number,
+        relic: any,
+        index: number,
         y: number
     ) {
+        // Small index number
+        const indexText = scene.add.text(0, y, `${index + 1}.`, {
+            fontFamily: 'Verdana',
+            fontSize: '12px',
+            color: '#64748b'
+        });
+
+        // Relic name
+        const nameText = scene.add.text(20, y, relic.name, {
+            fontFamily: 'Verdana',
+            fontSize: '13px',
+            color: '#fbbf24', // gold colour — relics feel special
+            fontStyle: 'bold'
+        });
+
+        // Relic description — truncated if too long
+        const desc = relic.description.length > 45
+            ? relic.description.substring(0, 42) + '...'
+            : relic.description;
+
+        const descText = scene.add.text(20, y + 14, desc, {
+            fontFamily: 'Verdana',
+            fontSize: '11px',
+            color: '#94a3b8'
+        });
+
+        container.add([indexText, nameText, descText]);
+    }
+
+    private static addSectionHeader(
+            scene: Phaser.Scene,
+            container: Phaser.GameObjects.Container,
+            label: string,
+            x: number,
+            y: number
+        ) {
         container.add(
             scene.add.text(x, y, label, {
                 fontFamily: 'Verdana',
-                fontSize:   '11px',
-                color:      '#64748b',
-                fontStyle:  'bold',
+                fontSize: '11px',
+                color: '#64748b',
+                fontStyle: 'bold',
                 letterSpacing: 2
             })
         );
@@ -176,14 +268,14 @@ export class CharacterSheetPanel {
         container.add([
             scene.add.text(x, y, label, {
                 fontFamily: 'Verdana',
-                fontSize:   '13px',
-                color:      '#94a3b8'
+                fontSize: '13px',
+                color: '#94a3b8'
             }),
             scene.add.text(x + 200, y, value, {
                 fontFamily: 'Verdana',
-                fontSize:   '13px',
-                color:      valueColor,
-                fontStyle:  'bold'
+                fontSize: '13px',
+                color: valueColor,
+                fontStyle: 'bold'
             }).setOrigin(1, 0)
         ]);
     }

@@ -139,45 +139,6 @@ export class OpenMap extends Phaser.Scene {
 
     // --- HELPERS for building panel content ---
 
-    private addSectionHeader(
-        container: Phaser.GameObjects.Container,
-        label: string,
-        x: number,
-        y: number
-    ) {
-        const header = this.add.text(x, y, label, {
-            fontFamily: 'Verdana',
-            fontSize: '11px',
-            color: '#64748b',
-            fontStyle: 'bold',
-            letterSpacing: 2
-        });
-        container.add(header);
-    }
-
-    private addStatRow(
-        container: Phaser.GameObjects.Container,
-        label: string,
-        value: string,
-        x: number,
-        y: number,
-        valueColor: string = '#e2e8f0'
-    ) {
-        const labelText = this.add.text(x, y, label, {
-            fontFamily: 'Verdana',
-            fontSize: '13px',
-            color: '#94a3b8'
-        });
-
-        const valueText = this.add.text(x + 200, y, value, {
-            fontFamily: 'Verdana',
-            fontSize: '13px',
-            color: valueColor,
-            fontStyle: 'bold'
-        }).setOrigin(1, 0); // right-aligned so values line up cleanly
-
-        container.add([labelText, valueText]);
-    }
 
     private isNodeSelectable(node: any, allNodes: any[], currentNodeId: string | null): boolean {
         if (!currentNodeId) return node.x === 0;
