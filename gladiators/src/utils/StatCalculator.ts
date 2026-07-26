@@ -1,10 +1,10 @@
 // src/utils/StatCalculator.ts
 import type { PlayerData } from '../data/PlayerData';
 import type { ScalingStat } from '../data/Equipment/EquipmentTypes';
+import { ATTACK_MULTIPLIERS, BARE_FIST_BASE } from './CombatEngine';
 
 export class StatCalculator {
 
-    // Returns base stats + all equipment modifier bonuses combined
     static getEffectiveStats(player: PlayerData): Record<string, number> {
         const effective: Record<string, number> = { ...player.stats };
 
@@ -22,37 +22,33 @@ export class StatCalculator {
         return effective;
     }
 
-    // Resolves scalingStat — single stat or picks highest from array
     static resolveScalingStat(
         scalingStat: ScalingStat | undefined,
         effectiveStats: Record<string, number>
     ): number {
         if (!scalingStat) return effectiveStats['strength'] ?? 0;
-
         if (Array.isArray(scalingStat)) {
             return Math.max(...scalingStat.map(s => effectiveStats[s] ?? 0));
         }
-
         return effectiveStats[scalingStat] ?? 0;
     }
 
-    // Computes the attack range shown in character sheet
+    // 🔥 CHANGED: uses same constants as CombatEngine for NORMAL attack preview
     static getAttackValue(player: PlayerData): { min: number; max: number } {
         const weapon = player.equipment?.weapon;
         const effectiveStats = StatCalculator.getEffectiveStats(player);
 
-        if (!weapon) {
-            // Bare fists — strength only, low base
-            const bonus = Math.floor((effectiveStats['strength'] ?? 0) * 0.3);
-            return { min: 1 + bonus, max: 3 + bonus };
-        }
-
+        const base = weapon?.baseDamage ?? BARE_FIST_BASE;
         const scalingValue = StatCalculator.resolveScalingStat(
-            weapon.scalingStat,
+            weapon?.scalingStat,
             effectiveStats
         );
-        const bonus = Math.floor(scalingValue * 0.3);
+        const statBonus = Math.floor(scalingValue * 0.5);
 
-        return { min: 5 + bonus, max: 5 + bonus + 2 };
+        // Show NORMAL attack range in UI (multiplier 1.0 so base is unchanged)
+        return {
+            min: Math.max(1, Math.floor(base.min  * ATTACK_MULTIPLIERS['NORMAL']) + statBonus),
+            max: Math.max(1, Math.floor(base.max * ATTACK_MULTIPLIERS['NORMAL']) + statBonus)
+        };
     }
 }

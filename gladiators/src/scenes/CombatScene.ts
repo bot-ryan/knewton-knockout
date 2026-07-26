@@ -16,8 +16,6 @@ import { SceneKeys } from '../data/SceneKeys';
 import { CharacterSheetPanel } from '../components/ui/CharacterSheetPanel';
 import { StatCalculator } from '../utils/StatCalculator';
 
-
-
 interface CombatPayload {
     character: PlayerData;
     enemyTemplate: EnemyTemplate;
@@ -84,9 +82,7 @@ export default class CombatScene extends Phaser.Scene {
 
     create() {
         const { width, height } = this.scale;
-
         this.worldCenterX = width / 2;
-
         this.uiContainer = this.add.container(0, 0);
 
         // --- 1. WORLD SETUP ---
@@ -125,27 +121,24 @@ export default class CombatScene extends Phaser.Scene {
         const buttonActions: ActionItem[] = [
             { label: '⬅️', description: 'Move Left — dash to the left.', isAttack: false, action: () => this.movePlayer('LEFT') },
             { label: '➡️', description: 'Move Right — dash to the right.', isAttack: false, action: () => this.movePlayer('RIGHT') },
-            { label: '⚡', description: 'will be updated...', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('QUICK') },
-            { label: '⚔️', description: 'will be updated...', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('NORMAL') },
-            { label: '💥', description: 'will be updated...', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('POWER') },
-            { label: '🏃', description: 'will be updated...', isAttack: true, isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
+            { label: '⚡', description: '...', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('QUICK') },
+            { label: '⚔️', description: '...', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('NORMAL') },
+            { label: '💥', description: '...', isAttack: true, isDisabled: () => this.getDistance() > 1, action: () => this.executeAction('POWER') },
+            { label: '🏃', description: '...', isAttack: true, isDisabled: () => this.getDistance() === 1, action: () => this.executeAction('CHARGE') },
             { label: '💤', description: 'Rest — recover stamina.', isAttack: false, action: () => this.executeAction('REST') }
         ];
 
-        // 🔥 CHANGED: placed just above the logbox (logbox top is height - 150, radius is 30, gap of 10)
         this.actionMenu = new ActionMenu(
             this, this.worldCenterX, height - 195, buttonActions,
             (desc) => this.logBox.showTooltip(desc),
             () => this.logBox.clearTooltip()
         );
         this.uiContainer.add(this.actionMenu);
-        // In create(), after uiContainer is set up:
-        // After actionMenu is created:
 
         CharacterSheetPanel.createButton(
             this,
             this.playerState,
-            this.worldCenterX + this.actionMenu.getRightEdgeX() + 18 + 30, // gap + own radius
+            this.worldCenterX + this.actionMenu.getRightEdgeX() + 18 + 30,
             height - 195,
             this.uiContainer
         );
@@ -196,12 +189,10 @@ export default class CombatScene extends Phaser.Scene {
             const labelText = this.add.text(width / 2, y, stat.label, { fontFamily: 'Verdana', fontSize: '18px', color: '#9aa4b2', fontStyle: 'bold' }).setOrigin(0.5);
             const pComp = getComparison(stat.pVal, stat.eVal);
             const eComp = getComparison(stat.eVal, stat.pVal);
-
             const pValText = this.add.text(width / 2 - 200, y, String(stat.pVal), { fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(1, 0.5);
             const pArrowText = this.add.text(width / 2 - 160, y, pComp.symbol, { fontFamily: 'sans-serif', fontSize: '18px', color: pComp.color }).setOrigin(0.5);
             const eArrowText = this.add.text(width / 2 + 160, y, eComp.symbol, { fontFamily: 'sans-serif', fontSize: '18px', color: eComp.color }).setOrigin(0.5);
             const eValText = this.add.text(width / 2 + 200, y, String(stat.eVal), { fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0, 0.5);
-
             vsContainer.add([labelText, pValText, pArrowText, eArrowText, eValText]);
         });
 
@@ -209,7 +200,6 @@ export default class CombatScene extends Phaser.Scene {
             vsContainer.destroy();
             this.startPlayerTurn();
         });
-
         fightBtn.container.setPosition(width / 2, height - 100);
         vsContainer.add(fightBtn.container);
         this.uiContainer.add(vsContainer);
@@ -229,9 +219,8 @@ export default class CombatScene extends Phaser.Scene {
 
     private showFloatingText(x: number, y: number, text: string, color: string) {
         const floatText = this.add.text(x, y - 60, text, {
-            fontFamily: 'sans-serif', fontSize: '26px', color: color, fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
+            fontFamily: 'sans-serif', fontSize: '26px', color, fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
         }).setOrigin(0.5);
-
         this.uiCamera.ignore(floatText);
         this.tweens.add({
             targets: floatText, y: y - 120, alpha: 0, duration: 1200, ease: 'Cubic.easeOut',
@@ -239,14 +228,13 @@ export default class CombatScene extends Phaser.Scene {
         });
     }
 
-    // 🔥 CHANGED: updates stored descriptions so hovering the button shows hit% in logbox
     private updateActionLabels() {
         const prec = this.playerState.stats.precision;
         const guard = this.enemyTemplate.stats.guard;
         const chargeRange = CombatEngine.getChargeRange(this.playerState.stats.dexterity);
         const willReach = this.getDistance() <= chargeRange;
 
-        this.actionMenu.updateDescription(2, `Quick Strike — fast, low damage. Hit chance: ${CombatEngine.getHitChance(prec, guard, 'QUICK')}%`);
+        this.actionMenu.updateDescription(2, `Quick Strike — fast, lower damage. Hit chance: ${CombatEngine.getHitChance(prec, guard, 'QUICK')}%`);
         this.actionMenu.updateDescription(3, `Normal Strike — balanced attack. Hit chance: ${CombatEngine.getHitChance(prec, guard, 'NORMAL')}%`);
         this.actionMenu.updateDescription(4, `Power Strike — slow, high damage. Hit chance: ${CombatEngine.getHitChance(prec, guard, 'POWER')}%`);
         this.actionMenu.updateDescription(5, `Charge — lunge forward. Range: ${chargeRange} ${willReach ? '(will reach ✓)' : '(too far ⚠️)'}`);
@@ -259,7 +247,6 @@ export default class CombatScene extends Phaser.Scene {
             this.time.delayedCall(1000, () => this.executeAction('REST', true));
             return;
         }
-
         this.turnState = 'PLAYER';
         this.logBox.log(`It is your turn.`);
         if (this.actionMenu.refresh) this.actionMenu.refresh();
@@ -277,7 +264,6 @@ export default class CombatScene extends Phaser.Scene {
         }
 
         this.turnState = 'LOCKED';
-
         this.playerState.secondaryStats.stamina.current -= dashCost;
         this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
 
@@ -291,35 +277,54 @@ export default class CombatScene extends Phaser.Scene {
             .then(() => this.time.delayedCall(300, () => this.processEnemyTurn()));
     }
 
+    // 🔥 NEW: helper so damage resolution isn't repeated in every attack branch
+    private resolvePlayerDamage(type: AttackType): number {
+        const effectiveStats = StatCalculator.getEffectiveStats(this.playerState);
+        const scalingValue = StatCalculator.resolveScalingStat(
+            this.playerState.equipment?.weapon?.scalingStat,
+            effectiveStats
+        );
+        const weaponBase = this.playerState.equipment?.weapon?.baseDamage;
+        return CombatEngine.calculateDamage(type, scalingValue, weaponBase);
+    }
+
     private executeAction(type: string, force: boolean = false) {
         if (this.turnState !== 'PLAYER' && !force) return;
         this.turnState = 'LOCKED';
 
         const cost = CombatEngine.getActionCost(type);
-
         if (type !== 'REST') {
             this.playerState.secondaryStats.stamina.current = Math.max(0, this.playerState.secondaryStats.stamina.current - cost);
             this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
         }
 
         if (type === 'CHARGE') {
-            this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
-                .then(() => {
-                    // 🔥 CHANGED: resolve scaling stat for charge too
-                    const effectiveStats = StatCalculator.getEffectiveStats(this.playerState);
-                    const scalingValue = StatCalculator.resolveScalingStat(
-                        this.playerState.equipment?.weapon?.scalingStat,
-                        effectiveStats
-                    );
+            const chargeRange = CombatEngine.getChargeRange(this.playerState.stats.dexterity);
+            const distance = this.getDistance();
+            const willReach = distance <= chargeRange;
 
-                    const dmg = CombatEngine.calculateDamage(
-                        this.playerState.stats.strength,
-                        'NORMAL',
-                        scalingValue
-                    );
-                    this.logBox.log(`You crash into ${this.enemyIdentity.name}!`);
-                    this.applyDamageToEnemy(dmg);
-                });
+            if (willReach) {
+                this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
+                    .then(() => {
+                        // CHARGE deals the same damage as NORMAL — distinction is purely movement
+                        const dmg = this.resolvePlayerDamage('NORMAL'); // 🔥 CHANGED
+                        this.logBox.log(`You crash into ${this.enemyIdentity.name}!`);
+                        this.applyDamageToEnemy(dmg);
+                    });
+            } else {
+                const MIN_GRID_X = -8;
+                const whiffGridX = Phaser.Math.Clamp(
+                    this.playerEntity.gridX + chargeRange,
+                    MIN_GRID_X,
+                    this.enemyEntity.gridX - 1
+                );
+                this.playerEntity.animateToGrid(whiffGridX, 300, () => this.updateDynamicCamera(0))
+                    .then(() => {
+                        this.logBox.log(`You lunged but fell short! You're now exposed.`);
+                        this.showFloatingText(this.playerEntity.x, this.playerEntity.y, 'WHIFF', '#cbd5e1');
+                        this.time.delayedCall(300, () => this.processEnemyTurn());
+                    });
+            }
         }
         else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
             const hits = CombatEngine.calculateHit(
@@ -329,18 +334,7 @@ export default class CombatScene extends Phaser.Scene {
             );
 
             if (hits) {
-                // 🔥 CHANGED: resolve scaling stat before calculating damage
-                const effectiveStats = StatCalculator.getEffectiveStats(this.playerState);
-                const scalingValue = StatCalculator.resolveScalingStat(
-                    this.playerState.equipment?.weapon?.scalingStat,
-                    effectiveStats
-                );
-
-                const dmg = CombatEngine.calculateDamage(
-                    this.playerState.stats.strength,
-                    type as AttackType,
-                    scalingValue
-                );
+                const dmg = this.resolvePlayerDamage(type as AttackType); // 🔥 CHANGED
                 this.applyDamageToEnemy(dmg);
             } else {
                 this.logBox.log(`You missed!`);
@@ -370,12 +364,10 @@ export default class CombatScene extends Phaser.Scene {
         this.enemyEntity.playDamageFlash().then(() => {
             if (this.currentEnemyHp <= 0) {
                 this.logBox.log(`Victory! Leaving arena...`);
-
                 usePlayerStore.getState().updateSecondaryStats({
                     hp: this.playerState.secondaryStats.hp,
                     stamina: this.playerState.secondaryStats.stamina
                 });
-
                 this.time.delayedCall(1000, () => {
                     this.cameras.main.fadeOut(250);
                     this.uiCamera.fadeOut(250);
@@ -416,7 +408,12 @@ export default class CombatScene extends Phaser.Scene {
 
                 const hits = CombatEngine.calculateHit(this.enemyTemplate.stats.precision, this.playerState.stats.guard, 'NORMAL');
                 if (hits) {
-                    const dmg = CombatEngine.calculateDamage(this.enemyTemplate.stats.strength, 'NORMAL');
+                    // 🔥 CHANGED: enemy uses new signature — no weapon, scales with strength
+                    const dmg = CombatEngine.calculateDamage(
+                        'NORMAL',
+                        this.enemyTemplate.stats.strength,
+                        undefined // no weapon = bare fists
+                    );
                     this.applyDamageToPlayer(dmg);
                 } else {
                     this.logBox.log(`${this.enemyIdentity.name} swung, but you DODGED!`);

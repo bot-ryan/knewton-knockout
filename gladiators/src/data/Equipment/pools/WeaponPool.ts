@@ -3,21 +3,20 @@ import type { Equipment } from '../EquipmentTypes';
 
 export const WEAPON_POOL: Equipment[] = [
 
-    // --- BEGINNER TIER ---
+    // --- BEGINNER ---
     {
         id: 'rusty_dagger',
         name: 'Rusty Dagger',
         description: 'Worn down but still cuts.',
         slot: 'weapon',
-        scalingStat: 'dexterity',
         weaponType: 'dagger',
         attackRange: 1,
         rarity: 'common',
         tier: 'beginner',
-        requirement: { stat: 'strength', value: 1 },
-        modifiers: [
-            { stat: 'precision', value: 2 }
-        ],
+        scalingStat: 'dexterity',
+        baseDamage: { min: 2, max: 4 },
+        requirement: { stat: 'dexterity', value: 1 },
+        modifiers: [{ stat: 'precision', value: 2 }],
         flavourText: 'Better than nothing.'
     },
     {
@@ -25,11 +24,12 @@ export const WEAPON_POOL: Equipment[] = [
         name: 'Wooden Club',
         description: 'Heavy swing, no finesse.',
         slot: 'weapon',
-        scalingStat: 'strength',
         weaponType: 'mace',
         attackRange: 1,
         rarity: 'common',
         tier: 'beginner',
+        scalingStat: 'strength',
+        baseDamage: { min: 4, max: 8 },
         requirement: { stat: 'strength', value: 2 },
         modifiers: [
             { stat: 'strength', value: 2 },
@@ -42,11 +42,12 @@ export const WEAPON_POOL: Equipment[] = [
         name: 'Short Sword',
         description: 'Balanced and reliable.',
         slot: 'weapon',
-        scalingStat: 'dexterity',
         weaponType: 'sword',
         attackRange: 1,
         rarity: 'common',
         tier: 'beginner',
+        scalingStat: ['strength', 'dexterity'], // picks highest
+        baseDamage: { min: 3, max: 6 },
         requirement: { stat: 'strength', value: 2 },
         modifiers: [
             { stat: 'strength', value: 1 },
@@ -55,16 +56,18 @@ export const WEAPON_POOL: Equipment[] = [
         flavourText: 'The arena staple.'
     },
 
-    // --- STANDARD TIER ---
+    // --- STANDARD ---
     {
         id: 'iron_spear',
         name: 'Iron Spear',
         description: 'Strike before they close the gap.',
         slot: 'weapon',
         weaponType: 'spear',
-        attackRange: 2,             // can attack at distance 2
+        attackRange: 2,
         rarity: 'uncommon',
         tier: 'standard',
+        scalingStat: 'strength',
+        baseDamage: { min: 4, max: 7 },
         requirement: { stat: 'strength', value: 4 },
         modifiers: [
             { stat: 'strength', value: 2 },
@@ -82,15 +85,17 @@ export const WEAPON_POOL: Equipment[] = [
         attackRange: 1,
         rarity: 'uncommon',
         tier: 'standard',
+        scalingStat: 'strength',
+        baseDamage: { min: 6, max: 11 },
         requirement: { stat: 'strength', value: 5 },
         modifiers: [
             { stat: 'strength', value: 4 },
             { stat: 'precision', value: -2 }
         ],
-        flavourText: 'Accuracy is for people who can\'t hit hard enough.'
+        flavourText: "Accuracy is for people who can't hit hard enough."
     },
 
-    // --- ELITE TIER ---
+    // --- ELITE ---
     {
         id: 'gladius',
         name: 'Gladius',
@@ -100,6 +105,8 @@ export const WEAPON_POOL: Equipment[] = [
         attackRange: 1,
         rarity: 'rare',
         tier: 'elite',
+        scalingStat: ['strength', 'dexterity'],
+        baseDamage: { min: 6, max: 10 },
         requirement: { stat: 'strength', value: 6 },
         modifiers: [
             { stat: 'strength', value: 3 },
@@ -109,18 +116,20 @@ export const WEAPON_POOL: Equipment[] = [
     },
     {
         id: 'hunters_crossbow',
-        name: 'Hunter\'s Crossbow',
+        name: "Hunter's Crossbow",
         description: 'Distance is no longer safety.',
         slot: 'weapon',
         weaponType: 'crossbow',
-        attackRange: 4,             // ignores distance almost entirely
+        attackRange: 4,
         rarity: 'rare',
         tier: 'elite',
-        requirement: { stat: 'precision', value: 6 },
+        scalingStat: 'dexterity',
+        baseDamage: { min: 4, max: 8 },
+        requirement: { stat: 'dexterity', value: 6 },
         modifiers: [
-            { stat: 'precision', value: 4 },
+            { stat: 'dexterity', value: 4 },
             { stat: 'strength', value: -2 }
         ],
-        flavourText: 'The crowd goes quiet when it\'s raised.'
+        flavourText: "The crowd goes quiet when it's raised."
     },
 ];

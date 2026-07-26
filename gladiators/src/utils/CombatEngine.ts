@@ -2,6 +2,16 @@
 
 export type AttackType = 'QUICK' | 'NORMAL' | 'POWER';
 
+// 🔥 NEW — exported so StatCalculator can use the same values
+export const ATTACK_MULTIPLIERS: Record<AttackType, number> = {
+    QUICK:  0.65,
+    NORMAL: 1.0,
+    POWER:  1.5
+};
+
+// 🔥 NEW — bare fist base when no weapon equipped
+export const BARE_FIST_BASE = { min: 2, max: 4 };
+
 export class CombatEngine {
 
     static calculateHit(attackerPrec: number, defenderGuard: number, type: AttackType): boolean {
@@ -13,18 +23,24 @@ export class CombatEngine {
         return Math.max(5, Math.min(95, 80 + (attackerPrec - defenderGuard) + modifiers[type]));
     }
 
-    // 🔥 CHANGED: scalingValue is now optional — falls back to strength if not passed
+    // 🔥 CHANGED: weapon base + type multiplier + stat bonus
     static calculateDamage(
-        attackerStr: number,
         type: AttackType,
-        scalingValue?: number
+        scalingStatValue: number,
+        weaponBase?: { min: number; max: number }
     ): number {
-        const baseModifiers: Record<AttackType, number> = { QUICK: 2, NORMAL: 5, POWER: 10 };
-        const base = baseModifiers[type];
+        const base = weaponBase ?? BARE_FIST_BASE;
 
-        // Use scalingValue if provided, otherwise fall back to strength
-        const statValue = scalingValue ?? attackerStr;
-        return base + Math.floor(statValue * 0.3) + Math.floor(Math.random() * 3);
+        // Random roll within weapon base range
+        const rawBase = base.min + Math.floor(Math.random() * (base.max - base.min + 1));
+
+        // Apply attack type multiplier
+        const multiplied = Math.floor(rawBase * ATTACK_MULTIPLIERS[type]);
+
+        // Flat stat bonus — 0.5 per point feels meaningful
+        const statBonus = Math.floor(scalingStatValue * 0.5);
+
+        return Math.max(1, multiplied + statBonus); // always deal at least 1
     }
 
     static getChargeRange(dexterity: number): number {
