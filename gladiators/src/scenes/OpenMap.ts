@@ -130,47 +130,9 @@ export class OpenMap extends Phaser.Scene {
 
         this.input.on('pointerup', () => { this.isDragging = false; });
 
-        // 🔥 NEW: Character sheet button — bottom right, fixed to screen
-        const charBtn = this.add.container(width - 50, height - 50);
+        CharacterSheetPanel.createButton(this, this.activePlayer!);
 
-        const btnCircle = this.add.graphics();
-        btnCircle.fillStyle(0x1e3a5f, 1);
-        btnCircle.fillCircle(0, 0, 28);
-        btnCircle.lineStyle(2, 0x3b82f6, 1);
-        btnCircle.strokeCircle(0, 0, 28);
-
-        const btnIcon = this.add.text(0, 0, '🧍', { fontSize: '20px' }).setOrigin(0.5);
-
-        // Transparent hit area for reliable click detection
-        const btnHit = this.add.graphics();
-        btnHit.fillStyle(0xffffff, 0.001);
-        btnHit.fillCircle(0, 0, 28);
-        btnHit.setInteractive(
-            new Phaser.Geom.Circle(0, 0, 28),
-            Phaser.Geom.Circle.Contains
-        );
-
-        btnHit.on('pointerover', () => {
-            btnCircle.clear();
-            btnCircle.fillStyle(0x2a4a7f, 1);
-            btnCircle.fillCircle(0, 0, 28);
-            btnCircle.lineStyle(2, 0x60a5fa, 1);
-            btnCircle.strokeCircle(0, 0, 28);
-        });
-
-        btnHit.on('pointerout', () => {
-            btnCircle.clear();
-            btnCircle.fillStyle(0x1e3a5f, 1);
-            btnCircle.fillCircle(0, 0, 28);
-            btnCircle.lineStyle(2, 0x3b82f6, 1);
-            btnCircle.strokeCircle(0, 0, 28);
-        });
-
-        btnHit.on('pointerdown', () => CharacterSheetPanel.open(this, this.activePlayer!));
         
-
-        charBtn.add([btnCircle, btnIcon, btnHit]);
-        charBtn.setScrollFactor(0).setDepth(10); // above map nodes
     }
 
     

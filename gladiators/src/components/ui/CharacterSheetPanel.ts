@@ -5,15 +5,82 @@ import { type PlayerData } from '../../data/PlayerData';
 
 export class CharacterSheetPanel {
 
-    static open(scene: Phaser.Scene, player: PlayerData, uiContainer?: Phaser.GameObjects.Container) {
+    /**
+     * Creates the round character sheet button and places it on screen.
+     * Call this once in any scene's create() method.
+     * 
+     * @param scene        — the Phaser scene
+     * @param player       — the player data to display
+     * @param x            — button center X (defaults to bottom-right)
+     * @param y            — button center Y (defaults to bottom-right)
+     * @param uiContainer  — pass this in CombatScene for dual-camera support
+     */
+    static createButton(
+        scene: Phaser.Scene,
+        player: PlayerData,
+        x?: number,
+        y?: number,
+        uiContainer?: Phaser.GameObjects.Container
+    ) {
+        const btnX = x ?? scene.scale.width  - 50;
+        const btnY = y ?? scene.scale.height - 50;
+        const radius = 28;
+
+        const btnContainer = scene.add.container(btnX, btnY);
+
+        // Circle background
+        const btnCircle = scene.add.graphics();
+        const drawCircle = (hovered: boolean) => {
+            btnCircle.clear();
+            btnCircle.fillStyle(hovered ? 0x2a4a7f : 0x1e3a5f, 1);
+            btnCircle.fillCircle(0, 0, radius);
+            btnCircle.lineStyle(2, hovered ? 0x60a5fa : 0x3b82f6, 1);
+            btnCircle.strokeCircle(0, 0, radius);
+        };
+        drawCircle(false);
+
+        // Icon
+        const btnIcon = scene.add.text(0, 0, '🧍', { fontSize: '20px' }).setOrigin(0.5);
+
+        // Transparent hit area
+        const btnHit = scene.add.graphics();
+        btnHit.fillStyle(0xffffff, 0.001);
+        btnHit.fillCircle(0, 0, radius);
+        btnHit.setInteractive(
+            new Phaser.Geom.Circle(0, 0, radius),
+            Phaser.Geom.Circle.Contains
+        );
+
+        btnHit.on('pointerover', () => drawCircle(true));
+        btnHit.on('pointerout',  () => drawCircle(false));
+        btnHit.on('pointerdown', () => CharacterSheetPanel.open(scene, player, uiContainer));
+
+        btnContainer.add([btnCircle, btnIcon, btnHit]);
+        btnContainer.setScrollFactor(0).setDepth(10);
+
+        // If in CombatScene, register with uiContainer for correct camera
+        if (uiContainer) {
+            uiContainer.add(btnContainer);
+        }
+
+        return btnContainer; // returned in case the caller needs to reposition or destroy it
+    }
+
+    /**
+     * Opens the character sheet panel directly without a button.
+     * Useful if you want to trigger it programmatically.
+     */
+    static open(
+        scene: Phaser.Scene,
+        player: PlayerData,
+        uiContainer?: Phaser.GameObjects.Container
+    ) {
         const panel = new PanelOverlay(scene, {
             title: 'CHARACTER SHEET',
             width: 500,
             height: 460
         });
 
-        // If a uiContainer is passed (CombatScene), add to it so the correct camera picks it up
-        // If not (OpenMap, ShopScene), it's already registered via scene.add.existing in PanelOverlay
         if (uiContainer) {
             uiContainer.add(panel);
         }
@@ -59,7 +126,7 @@ export class CharacterSheetPanel {
             y += 24;
         });
 
-        // Equipment column — starts at same Y as primary stats
+        // Equipment column — realigns to start of stats block
         let equipY = y - (primaryStats.length * 24);
         const equipment = player.equipment ?? { weapon: null, shield: null, accessory: null };
 
@@ -86,14 +153,15 @@ export class CharacterSheetPanel {
         x: number,
         y: number
     ) {
-        const header = scene.add.text(x, y, label, {
-            fontFamily: 'Verdana',
-            fontSize:   '11px',
-            color:      '#64748b',
-            fontStyle:  'bold',
-            letterSpacing: 2
-        });
-        container.add(header);
+        container.add(
+            scene.add.text(x, y, label, {
+                fontFamily: 'Verdana',
+                fontSize:   '11px',
+                color:      '#64748b',
+                fontStyle:  'bold',
+                letterSpacing: 2
+            })
+        );
     }
 
     private static addStatRow(
@@ -105,19 +173,18 @@ export class CharacterSheetPanel {
         y: number,
         valueColor: string = '#e2e8f0'
     ) {
-        const labelText = scene.add.text(x, y, label, {
-            fontFamily: 'Verdana',
-            fontSize:   '13px',
-            color:      '#94a3b8'
-        });
-
-        const valueText = scene.add.text(x + 200, y, value, {
-            fontFamily: 'Verdana',
-            fontSize:   '13px',
-            color:      valueColor,
-            fontStyle:  'bold'
-        }).setOrigin(1, 0);
-
-        container.add([labelText, valueText]);
+        container.add([
+            scene.add.text(x, y, label, {
+                fontFamily: 'Verdana',
+                fontSize:   '13px',
+                color:      '#94a3b8'
+            }),
+            scene.add.text(x + 200, y, value, {
+                fontFamily: 'Verdana',
+                fontSize:   '13px',
+                color:      valueColor,
+                fontStyle:  'bold'
+            }).setOrigin(1, 0)
+        ]);
     }
 }

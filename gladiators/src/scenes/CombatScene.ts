@@ -13,7 +13,7 @@ import { ButtonCreator } from '../components/ButtonCreator';
 import { usePlayerStore } from '../data/PlayerData';
 import { useMapStore } from '../data/MapData';
 import { SceneKeys } from '../data/SceneKeys';
-import { PanelOverlay } from '../components/ui/PanelOverlay';
+import { CharacterSheetPanel } from '../components/ui/CharacterSheetPanel';
 
 
 
@@ -83,7 +83,7 @@ export default class CombatScene extends Phaser.Scene {
 
     create() {
         const { width, height } = this.scale;
-        
+
         this.worldCenterX = width / 2;
 
         this.uiContainer = this.add.container(0, 0);
@@ -138,6 +138,16 @@ export default class CombatScene extends Phaser.Scene {
             () => this.logBox.clearTooltip()
         );
         this.uiContainer.add(this.actionMenu);
+        // In create(), after uiContainer is set up:
+        // After actionMenu is created:
+
+        CharacterSheetPanel.createButton(
+            this,
+            this.playerState,
+            this.worldCenterX + this.actionMenu.getRightEdgeX() + 18 + 30, // gap + own radius
+            height - 195,
+            this.uiContainer
+        );
 
         // --- 5. CAMERA SETUP ---
         this.uiCamera = this.cameras.add(0, 0, width, height);
