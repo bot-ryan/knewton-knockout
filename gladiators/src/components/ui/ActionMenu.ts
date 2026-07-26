@@ -56,11 +56,11 @@ export class ActionMenu extends Phaser.GameObjects.Container {
         this.actionItems = actions;
 
         actions.forEach((btn, index) => {
-            const col  = index % buttonsPerRow;
+            const col = index % buttonsPerRow;
             const btnX = startX + (col * (diameter + gap));
             const btnY = 0; // single row, no vertical offset needed
 
-            const baseColor   = btn.isAttack ? 0x7f1d1d : 0x1e3a5f;
+            const baseColor = btn.isAttack ? 0x7f1d1d : 0x1e3a5f;
             const borderColor = btn.isAttack ? 0xef4444 : 0x3b82f6;
 
             const graphics = scene.add.graphics();
@@ -149,5 +149,14 @@ export class ActionMenu extends Phaser.GameObjects.Container {
 
     public updateTooltip(index: number, text: string) {
         this.updateDescription(index, text);
+    }
+
+    // Add this getter to ActionMenu.ts
+    public getRightEdgeX(): number {
+        const buttonsPerRow = this.actionItems.length;
+        const diameter = this.RADIUS * 2;
+        const gap = 18;
+        const totalGridWidth = (buttonsPerRow * diameter) + ((buttonsPerRow - 1) * gap);
+        return totalGridWidth / 2; // distance from container center to right edge
     }
 }

@@ -28,7 +28,7 @@ export interface PlayerData {
   relics: Relic[]; // max 5, enforced in the store action
   equipment: {
     weapon: Equipment | null;
-    offhand: Equipment | null;
+    shield: Equipment | null;
     accessory: Equipment | null;
   }
 }
@@ -69,7 +69,7 @@ export const usePlayerStore = createStore<PlayerStoreState>((set, get) => ({
   relics: [],       // max 5, enforced in the store action
   equipment: {
     weapon: null,
-    offhand: null,
+    shield: null,
     accessory: null
   },
 
