@@ -5,6 +5,7 @@ import { SceneKeys } from '../data/SceneKeys';
 import { usePlayerStore, type PlayerData } from '../data/PlayerData';
 import { useMapStore } from '../data/MapData';
 import { StatChip } from '../components/ui/StatChip';
+import { CharacterSheetPanel } from '../components/ui/CharacterSheetPanel';
 
 import {
     BEGINNER_ENEMY_POOL,
@@ -25,18 +26,19 @@ export class OpenMap extends Phaser.Scene {
     }
 
     init() {
-        // 🔥 FIX 2: Zustand makes scene-to-scene data passing obsolete!
-        // We just grab the freshest snapshot of the player directly from the store.
         this.activePlayer = usePlayerStore.getState() as PlayerData;
     }
 
     create() {
+        const { width, height } = this.scale;
+
         const PADDING_X = 140;
         const PADDING_Y = 90;
         const JITTER = 20;
         const startX = 150;
-        const startY = (this.scale.height / 2) - (3 * PADDING_Y);
+        const startY = (height / 2) - (3 * PADDING_Y);
 
+        // --- STAT CHIPS ---
         const hpChip = new StatChip(
             this, 20, 20, 'hp',
             this.activePlayer?.secondaryStats.hp.current ?? 0,
@@ -52,9 +54,9 @@ export class OpenMap extends Phaser.Scene {
         const goldChip = new StatChip(
             this, 240, 20, 'gold',
             this.activePlayer?.gold ?? 0
-            // no max — gold has no cap
         ).setScrollFactor(0);
 
+        // --- MAP GENERATION ---
         if (useMapStore.getState().nodes.length === 0) {
             const generator = new SpireMapGenerator();
             const rawNodes = generator.generate();
@@ -70,11 +72,9 @@ export class OpenMap extends Phaser.Scene {
 
         const { nodes: visualNodes, currentNodeId } = useMapStore.getState();
 
-        // Determine Map Width for Camera Bounds
         const maxVX = Math.max(...visualNodes.map(n => n.vX)) + 200;
-        this.cameras.main.setBounds(0, 0, maxVX, this.scale.height);
+        this.cameras.main.setBounds(0, 0, maxVX, height);
 
-        // Draw Lines
         const graphics = this.add.graphics();
         graphics.lineStyle(2, 0x444444, 0.8);
 
@@ -89,11 +89,9 @@ export class OpenMap extends Phaser.Scene {
         });
         graphics.strokePath();
 
-        // Draw Nodes & Apply Path Locking
         visualNodes.forEach(node => {
             const isSelectable = this.isNodeSelectable(node, visualNodes, currentNodeId);
             const isCurrentNode = node.id === currentNodeId;
-
             const iconAlpha = isSelectable || isCurrentNode ? 1 : 0.3;
 
             const icon = this.add.text(node.vX, node.vY, String(node.type), { fontSize: '36px' })
@@ -102,16 +100,15 @@ export class OpenMap extends Phaser.Scene {
 
             if (isCurrentNode) {
                 this.add.text(node.vX, node.vY - 35, 'YOU', {
-                    fontSize: '14px', fontStyle: 'bold', color: '#fbbf24', backgroundColor: '#000000', padding: { x: 4, y: 2 }
+                    fontSize: '14px', fontStyle: 'bold', color: '#fbbf24',
+                    backgroundColor: '#000000', padding: { x: 4, y: 2 }
                 }).setOrigin(0.5);
             }
 
             if (isSelectable) {
                 icon.setInteractive({ useHandCursor: true });
-
                 icon.on('pointerover', () => icon.setScale(1.2));
-                icon.on('pointerout', () => icon.setScale(1.0));
-
+                icon.on('pointerout',  () => icon.setScale(1.0));
                 icon.on('pointerdown', (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
                     event.stopPropagation();
                     this.handleNodeEncounter(node);
@@ -119,7 +116,7 @@ export class OpenMap extends Phaser.Scene {
             }
         });
 
-        // CAMERA DRAG LOGIC
+        // --- CAMERA DRAG ---
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
             this.isDragging = true;
             this.dragStartX = pointer.x;
@@ -128,29 +125,100 @@ export class OpenMap extends Phaser.Scene {
 
         this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
             if (!this.isDragging) return;
-            const diffX = pointer.x - this.dragStartX;
-            this.cameras.main.scrollX = this.camStartX - diffX;
+            this.cameras.main.scrollX = this.camStartX - (pointer.x - this.dragStartX);
         });
 
-        this.input.on('pointerup', () => {
-            this.isDragging = false;
+        this.input.on('pointerup', () => { this.isDragging = false; });
+
+        // 🔥 NEW: Character sheet button — bottom right, fixed to screen
+        const charBtn = this.add.container(width - 50, height - 50);
+
+        const btnCircle = this.add.graphics();
+        btnCircle.fillStyle(0x1e3a5f, 1);
+        btnCircle.fillCircle(0, 0, 28);
+        btnCircle.lineStyle(2, 0x3b82f6, 1);
+        btnCircle.strokeCircle(0, 0, 28);
+
+        const btnIcon = this.add.text(0, 0, '🧍', { fontSize: '20px' }).setOrigin(0.5);
+
+        // Transparent hit area for reliable click detection
+        const btnHit = this.add.graphics();
+        btnHit.fillStyle(0xffffff, 0.001);
+        btnHit.fillCircle(0, 0, 28);
+        btnHit.setInteractive(
+            new Phaser.Geom.Circle(0, 0, 28),
+            Phaser.Geom.Circle.Contains
+        );
+
+        btnHit.on('pointerover', () => {
+            btnCircle.clear();
+            btnCircle.fillStyle(0x2a4a7f, 1);
+            btnCircle.fillCircle(0, 0, 28);
+            btnCircle.lineStyle(2, 0x60a5fa, 1);
+            btnCircle.strokeCircle(0, 0, 28);
         });
 
-        // // UI Header
-        // this.add.text(20, 20, `${this.activePlayer?.name} | HEALTH: ${this.activePlayer?.secondaryStats.hp.current}/${this.activePlayer?.secondaryStats.hp.max}`, {
-        //     color: '#ffffff',
-        //     fontSize: '16px',
-        //     fontFamily: 'Verdana',
-        //     backgroundColor: '#141a2a',
-        //     padding: { x: 10, y: 5 }
-        // }).setScrollFactor(0).setStroke('#22304c', 2);
+        btnHit.on('pointerout', () => {
+            btnCircle.clear();
+            btnCircle.fillStyle(0x1e3a5f, 1);
+            btnCircle.fillCircle(0, 0, 28);
+            btnCircle.lineStyle(2, 0x3b82f6, 1);
+            btnCircle.strokeCircle(0, 0, 28);
+        });
+
+        btnHit.on('pointerdown', () => CharacterSheetPanel.open(this, this.activePlayer!));
+        
+
+        charBtn.add([btnCircle, btnIcon, btnHit]);
+        charBtn.setScrollFactor(0).setDepth(10); // above map nodes
+    }
+
+    
+
+    // --- HELPERS for building panel content ---
+
+    private addSectionHeader(
+        container: Phaser.GameObjects.Container,
+        label: string,
+        x: number,
+        y: number
+    ) {
+        const header = this.add.text(x, y, label, {
+            fontFamily: 'Verdana',
+            fontSize: '11px',
+            color: '#64748b',
+            fontStyle: 'bold',
+            letterSpacing: 2
+        });
+        container.add(header);
+    }
+
+    private addStatRow(
+        container: Phaser.GameObjects.Container,
+        label: string,
+        value: string,
+        x: number,
+        y: number,
+        valueColor: string = '#e2e8f0'
+    ) {
+        const labelText = this.add.text(x, y, label, {
+            fontFamily: 'Verdana',
+            fontSize: '13px',
+            color: '#94a3b8'
+        });
+
+        const valueText = this.add.text(x + 200, y, value, {
+            fontFamily: 'Verdana',
+            fontSize: '13px',
+            color: valueColor,
+            fontStyle: 'bold'
+        }).setOrigin(1, 0); // right-aligned so values line up cleanly
+
+        container.add([labelText, valueText]);
     }
 
     private isNodeSelectable(node: any, allNodes: any[], currentNodeId: string | null): boolean {
-        if (!currentNodeId) {
-            return node.x === 0;
-        }
-
+        if (!currentNodeId) return node.x === 0;
         const currentNode = allNodes.find((n: any) => n.id === currentNodeId);
         return currentNode ? currentNode.nextNodes.includes(node.id) : false;
     }
@@ -178,8 +246,6 @@ export class OpenMap extends Phaser.Scene {
 
         this.cameras.main.fadeOut(250, 0, 0, 0);
         this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-            // 🔥 Note: We are still passing character data here so we don't break your CombatScene,
-            // but eventually, CombatScene should pull from Zustand too!
             this.scene.start('CombatScene', {
                 character: this.activePlayer,
                 enemyTemplate: chosenEnemy
