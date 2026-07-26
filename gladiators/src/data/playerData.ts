@@ -93,6 +93,14 @@ export const usePlayerStore = createStore<PlayerStoreState>((set, get) => ({
     return true;
   },
 
+  equipItem: (item: Equipment) => set((state) => ({
+    equipment: { ...state.equipment, [item.slot]: item }
+  })),
+
+  unequipItem: (slot: Equipment['slot']) => set((state) => ({
+    equipment: { ...state.equipment, [slot]: null }
+  })),
+
   addRelic: (relic) => {
     const currentRelics = get().relics;
     if (currentRelics.length >= 5) return false; // can't add more than 5

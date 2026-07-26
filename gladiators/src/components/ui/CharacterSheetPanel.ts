@@ -2,6 +2,7 @@
 import Phaser from 'phaser';
 import { PanelOverlay } from './PanelOverlay';
 import { type PlayerData } from '../../data/PlayerData';
+import { StatCalculator } from '../../utils/StatCalculator';
 
 export class CharacterSheetPanel {
 
@@ -94,9 +95,12 @@ export class CharacterSheetPanel {
         CharacterSheetPanel.addSectionHeader(scene, cc, 'VITALS', colLeft, y);
         y += 28;
 
+        const atk = StatCalculator.getAttackValue(player);
+
         const vitals = [
             { label: '❤️  HP', value: `${player.secondaryStats.hp.current} / ${player.secondaryStats.hp.max}` },
             { label: '⚡ Stamina', value: `${player.secondaryStats.stamina.current} / ${player.secondaryStats.stamina.max}` },
+             { label: '⚔️  Attack',  value: `${atk.min} – ${atk.max}` },
             { label: '🪙 Gold', value: `${player.gold}` }
         ];
 

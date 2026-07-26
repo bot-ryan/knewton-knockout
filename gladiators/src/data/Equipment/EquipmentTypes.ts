@@ -5,9 +5,14 @@ export type EquipmentSlot = 'weapon' | 'shield' | 'accessory';
 export type WeaponType = 'dagger' | 'sword' | 'mace' | 'spear' | 'crossbow';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 export type EnemyTier = 'beginner' | 'standard' | 'elite' | 'boss';
+export type ScalingStat = 
+    | 'strength' 
+    | 'dexterity' 
+    | 'arcane' 
+    | Array<'strength' | 'dexterity' | 'arcane'>; // array = picks highest
 
 export interface StatRequirement {
-    stat: StatKey;
+    stat: string;
     value: number;
 }
 
@@ -27,5 +32,6 @@ export interface Equipment {
     modifiers: StatModifier[];
     weaponType?: WeaponType;
     attackRange?: number;
+    scalingStat?: ScalingStat;
     flavourText?: string;
 }

@@ -14,6 +14,7 @@ import { usePlayerStore } from '../data/PlayerData';
 import { useMapStore } from '../data/MapData';
 import { SceneKeys } from '../data/SceneKeys';
 import { CharacterSheetPanel } from '../components/ui/CharacterSheetPanel';
+import { StatCalculator } from '../utils/StatCalculator';
 
 
 
@@ -302,33 +303,23 @@ export default class CombatScene extends Phaser.Scene {
         }
 
         if (type === 'CHARGE') {
-            const chargeRange = CombatEngine.getChargeRange(this.playerState.stats.dexterity);
-            const distance = this.getDistance();
-            const willReach = distance <= chargeRange;
+            this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
+                .then(() => {
+                    // 🔥 CHANGED: resolve scaling stat for charge too
+                    const effectiveStats = StatCalculator.getEffectiveStats(this.playerState);
+                    const scalingValue = StatCalculator.resolveScalingStat(
+                        this.playerState.equipment?.weapon?.scalingStat,
+                        effectiveStats
+                    );
 
-            if (willReach) {
-                this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
-                    .then(() => {
-                        // CHARGE deals the same damage as NORMAL — distinction is
-                        // purely movement: it closes the gap before hitting
-                        const dmg = CombatEngine.calculateDamage(this.playerState.stats.strength, 'NORMAL');
-                        this.logBox.log(`You crash into ${this.enemyIdentity.name}!`);
-                        this.applyDamageToEnemy(dmg);
-                    });
-            } else {
-                const MIN_GRID_X = -8;
-                const whiffGridX = Phaser.Math.Clamp(
-                    this.playerEntity.gridX + chargeRange,
-                    MIN_GRID_X,
-                    this.enemyEntity.gridX - 1
-                );
-                this.playerEntity.animateToGrid(whiffGridX, 300, () => this.updateDynamicCamera(0))
-                    .then(() => {
-                        this.logBox.log(`You lunged but fell short! You're now exposed.`);
-                        this.showFloatingText(this.playerEntity.x, this.playerEntity.y, 'WHIFF', '#cbd5e1');
-                        this.time.delayedCall(300, () => this.processEnemyTurn());
-                    });
-            }
+                    const dmg = CombatEngine.calculateDamage(
+                        this.playerState.stats.strength,
+                        'NORMAL',
+                        scalingValue
+                    );
+                    this.logBox.log(`You crash into ${this.enemyIdentity.name}!`);
+                    this.applyDamageToEnemy(dmg);
+                });
         }
         else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
             const hits = CombatEngine.calculateHit(
@@ -338,7 +329,18 @@ export default class CombatScene extends Phaser.Scene {
             );
 
             if (hits) {
-                const dmg = CombatEngine.calculateDamage(this.playerState.stats.strength, type as AttackType);
+                // 🔥 CHANGED: resolve scaling stat before calculating damage
+                const effectiveStats = StatCalculator.getEffectiveStats(this.playerState);
+                const scalingValue = StatCalculator.resolveScalingStat(
+                    this.playerState.equipment?.weapon?.scalingStat,
+                    effectiveStats
+                );
+
+                const dmg = CombatEngine.calculateDamage(
+                    this.playerState.stats.strength,
+                    type as AttackType,
+                    scalingValue
+                );
                 this.applyDamageToEnemy(dmg);
             } else {
                 this.logBox.log(`You missed!`);
