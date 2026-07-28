@@ -229,9 +229,11 @@ export default class CombatScene extends Phaser.Scene {
     }
 
     private updateActionLabels() {
-        const prec = this.playerState.stats.precision;
+        // 🔥 CHANGED: use effective stats so equipment bonuses apply to hit chance display
+        const effective = StatCalculator.getEffectiveStats(this.playerState);
+        const prec = effective.precision;  // was: this.playerState.stats.precision
         const guard = this.enemyTemplate.stats.guard;
-        const chargeRange = CombatEngine.getChargeRange(this.playerState.stats.dexterity);
+        const chargeRange = CombatEngine.getChargeRange(effective.dexterity); // was: playerState.stats.dexterity
         const willReach = this.getDistance() <= chargeRange;
 
         this.actionMenu.updateDescription(2, `Quick Strike — fast, lower damage. Hit chance: ${CombatEngine.getHitChance(prec, guard, 'QUICK')}%`);
@@ -267,7 +269,9 @@ export default class CombatScene extends Phaser.Scene {
         this.playerState.secondaryStats.stamina.current -= dashCost;
         this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
 
-        const distance = 1 + Math.floor(this.playerState.stats.dexterity / 2);
+        // 🔥 CHANGED: dexterity read through effective stats
+        const effective = StatCalculator.getEffectiveStats(this.playerState);
+        const distance = 1 + Math.floor(effective.dexterity / 2); // was: playerState.stats.dexterity
         const intendedGridX = this.playerEntity.gridX + (direction === 'LEFT' ? -distance : distance);
         const MIN_GRID_X = -8;
         const finalGridX = Phaser.Math.Clamp(intendedGridX, MIN_GRID_X, this.enemyEntity.gridX - 1);
@@ -299,15 +303,16 @@ export default class CombatScene extends Phaser.Scene {
         }
 
         if (type === 'CHARGE') {
-            const chargeRange = CombatEngine.getChargeRange(this.playerState.stats.dexterity);
+            // 🔥 CHANGED: dexterity read through effective stats
+            const effective = StatCalculator.getEffectiveStats(this.playerState);
+            const chargeRange = CombatEngine.getChargeRange(effective.dexterity); // was: playerState.stats.dexterity
             const distance = this.getDistance();
             const willReach = distance <= chargeRange;
 
             if (willReach) {
                 this.playerEntity.animateToGrid(this.enemyEntity.gridX - 1, 300, () => this.updateDynamicCamera(0))
                     .then(() => {
-                        // CHARGE deals the same damage as NORMAL — distinction is purely movement
-                        const dmg = this.resolvePlayerDamage('NORMAL'); // 🔥 CHANGED
+                        const dmg = this.resolvePlayerDamage('NORMAL');
                         this.logBox.log(`You crash into ${this.enemyIdentity.name}!`);
                         this.applyDamageToEnemy(dmg);
                     });
@@ -406,13 +411,19 @@ export default class CombatScene extends Phaser.Scene {
                 this.currentEnemyStamina = Math.max(0, this.currentEnemyStamina - CombatEngine.getActionCost('NORMAL'));
                 this.enemyStaminaBar.update(this.currentEnemyStamina, this.enemyTemplate.baseStamina);
 
-                const hits = CombatEngine.calculateHit(this.enemyTemplate.stats.precision, this.playerState.stats.guard, 'NORMAL');
+                // 🔥 CHANGED: player guard now reads through effective stats
+                const effective = StatCalculator.getEffectiveStats(this.playerState);
+                const hits = CombatEngine.calculateHit(
+                    this.enemyTemplate.stats.precision,
+                    effective.guard, // was: this.playerState.stats.guard
+                    'NORMAL'
+                );
+
                 if (hits) {
-                    // 🔥 CHANGED: enemy uses new signature — no weapon, scales with strength
                     const dmg = CombatEngine.calculateDamage(
                         'NORMAL',
                         this.enemyTemplate.stats.strength,
-                        undefined // no weapon = bare fists
+                        undefined
                     );
                     this.applyDamageToPlayer(dmg);
                 } else {
