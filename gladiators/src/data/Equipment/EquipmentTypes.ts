@@ -1,13 +1,17 @@
 // src/data/Equipment/EquipmentTypes.ts
-import type { StatKey } from '../../types/models';
 
 export type EquipmentSlot = 'weapon' | 'shield' | 'accessory';
 export type WeaponType = 'dagger' | 'sword' | 'mace' | 'spear' | 'crossbow';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 export type EnemyTier = 'beginner' | 'standard' | 'elite' | 'boss';
+export type ScalingStat =
+    | 'strength'
+    | 'dexterity'
+    | 'arcane'
+    | Array<'strength' | 'dexterity' | 'arcane'>;
 
 export interface StatRequirement {
-    stat: StatKey;
+    stat: string;
     value: number;
 }
 
@@ -22,10 +26,12 @@ export interface Equipment {
     description: string;
     slot: EquipmentSlot;
     rarity: Rarity;
-    tier: EnemyTier;        // which tier of combat drops this
+    tier: EnemyTier;
     requirement?: StatRequirement;
     modifiers: StatModifier[];
     weaponType?: WeaponType;
     attackRange?: number;
+    scalingStat?: ScalingStat;
+    baseDamage?: { min: number; max: number }; // 🔥 NEW — weapons only
     flavourText?: string;
 }

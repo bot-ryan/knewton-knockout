@@ -2,19 +2,11 @@
 import Phaser from 'phaser';
 import { PanelOverlay } from './PanelOverlay';
 import { type PlayerData } from '../../data/PlayerData';
+import { StatCalculator } from '../../utils/StatCalculator';
+
 
 export class CharacterSheetPanel {
 
-    /**
-     * Creates the round character sheet button and places it on screen.
-     * Call this once in any scene's create() method.
-     * 
-     * @param scene        — the Phaser scene
-     * @param player       — the player data to display
-     * @param x            — button center X (defaults to bottom-right)
-     * @param y            — button center Y (defaults to bottom-right)
-     * @param uiContainer  — pass this in CombatScene for dual-camera support
-     */
     static createButton(
         scene: Phaser.Scene,
         player: PlayerData,
@@ -28,7 +20,6 @@ export class CharacterSheetPanel {
 
         const btnContainer = scene.add.container(btnX, btnY);
 
-        // Circle background
         const btnCircle = scene.add.graphics();
         const drawCircle = (hovered: boolean) => {
             btnCircle.clear();
@@ -39,10 +30,8 @@ export class CharacterSheetPanel {
         };
         drawCircle(false);
 
-        // Icon
         const btnIcon = scene.add.text(0, 0, '🧍', { fontSize: '20px' }).setOrigin(0.5);
 
-        // Transparent hit area
         const btnHit = scene.add.graphics();
         btnHit.fillStyle(0xffffff, 0.001);
         btnHit.fillCircle(0, 0, radius);
@@ -58,18 +47,11 @@ export class CharacterSheetPanel {
         btnContainer.add([btnCircle, btnIcon, btnHit]);
         btnContainer.setScrollFactor(0).setDepth(10);
 
-        // If in CombatScene, register with uiContainer for correct camera
-        if (uiContainer) {
-            uiContainer.add(btnContainer);
-        }
+        if (uiContainer) uiContainer.add(btnContainer);
 
-        return btnContainer; // returned in case the caller needs to reposition or destroy it
+        return btnContainer;
     }
 
-    /**
-     * Opens the character sheet panel directly without a button.
-     * Useful if you want to trigger it programmatically.
-     */
     static open(
         scene: Phaser.Scene,
         player: PlayerData,
@@ -78,39 +60,83 @@ export class CharacterSheetPanel {
         const panel = new PanelOverlay(scene, {
             title: 'CHARACTER SHEET',
             width: 500,
-            height: 460
+            height: 480
         });
 
-        if (uiContainer) {
-            uiContainer.add(panel);
-        }
+        if (uiContainer) uiContainer.add(panel);
 
         const cc = panel.contentContainer;
         const colLeft = 0;
         const colRight = 240;
+        const infoWidth = 200;
+        const infoHeight = 110;
         let y = 0;
+
+        // --- INFO BOX (top right — the empty area) ---
+        const infoBg = scene.add.rectangle(colRight, 0, infoWidth, infoHeight, 0x0a1128)
+            .setOrigin(0, 0)
+            .setStrokeStyle(1, 0x1e293b);
+
+        const infoText = scene.add.text(colRight + 10, 8, 'Hover over any stat\nto see details.', {
+            fontFamily: 'Verdana',
+            fontSize: '11px',
+            color: '#4b5563',
+            wordWrap: { width: infoWidth - 20 },
+            lineSpacing: 4
+        });
+
+        cc.add([infoBg, infoText]);
+
+        // Helper — updates the info box text
+        const showInfo = (text: string) => infoText.setText(text).setColor('#94a3b8');
+        const clearInfo = () => infoText.setText('Hover over any stat\nto see details.').setColor('#4b5563');
 
         // --- VITALS ---
         CharacterSheetPanel.addSectionHeader(scene, cc, 'VITALS', colLeft, y);
         y += 28;
 
+        const vitalDescriptions: Record<string, string> = {
+            '❤️  HP': 'Your health points.\nReaching 0 means defeat.\nRest between fights to recover.',
+            '⚡ Stamina': 'Powers your actions each turn.\nRunning out forces a rest.\nRecovers 20 per REST action.',
+            '🪙 Gold': 'Earned by defeating enemies.\nSpend at shop nodes on\nthe map to buy upgrades.',
+        };
+
         const vitals = [
             { label: '❤️  HP', value: `${player.secondaryStats.hp.current} / ${player.secondaryStats.hp.max}` },
             { label: '⚡ Stamina', value: `${player.secondaryStats.stamina.current} / ${player.secondaryStats.stamina.max}` },
-            { label: '🪙 Gold', value: `${player.gold}` }
+            { label: '🪙 Gold', value: `${player.gold}` },
         ];
 
         vitals.forEach(row => {
-            CharacterSheetPanel.addStatRow(scene, cc, row.label, row.value, colLeft, y);
+            CharacterSheetPanel.addStatRow(
+                scene, cc, row.label, row.value, colLeft, y,
+                '#e2e8f0',
+                () => showInfo(vitalDescriptions[row.label] ?? ''),
+                clearInfo
+            );
             y += 24;
         });
 
+        // Attack row — shows overall range, info box shows breakdown
+        CharacterSheetPanel.addAttackRow(scene, cc, player, colLeft, y, showInfo, clearInfo);
+        y += 24;
+
         y += 16;
 
-        // --- PRIMARY STATS (left) + EQUIPMENT (right) ---
+        // --- PRIMARY STATS (left) + EQUIPMENT (right, below info box) ---
+        const equipStartY = infoHeight + 16; // equipment starts below the info box
         CharacterSheetPanel.addSectionHeader(scene, cc, 'PRIMARY STATS', colLeft, y);
-        CharacterSheetPanel.addSectionHeader(scene, cc, 'EQUIPMENT', colRight, y);
+        CharacterSheetPanel.addSectionHeader(scene, cc, 'EQUIPMENT', colRight, equipStartY);
         y += 28;
+
+        const statDescriptions: Record<string, string> = {
+            'Strength': 'Increases melee weapon\ndamage and lets you equip\nheavy weapons.',
+            'Dexterity': 'Increases movement range,\ncharge range, and dagger\nor bow damage.',
+            'Precision': 'Increases hit chance and\ncritical strike chance.',
+            'Guard': 'Increases the chance to\ndodge incoming attacks.',
+            'Vitality': 'Increases max HP\nand max stamina.',
+            'Arcane': 'Increases max mana and\nspell power for future\nmagic abilities.',
+        };
 
         const primaryStats = [
             { label: 'Strength', value: player.stats.strength },
@@ -122,136 +148,122 @@ export class CharacterSheetPanel {
         ];
 
         primaryStats.forEach(stat => {
-            CharacterSheetPanel.addStatRow(scene, cc, stat.label, String(stat.value), colLeft, y);
+            CharacterSheetPanel.addStatRow(
+                scene, cc, stat.label, String(stat.value), colLeft, y,
+                '#e2e8f0',
+                () => showInfo(statDescriptions[stat.label] ?? ''),
+                clearInfo
+            );
             y += 24;
         });
 
-        // Equipment column — realigns to start of stats block
-        let equipY = y - (primaryStats.length * 24);
+        // Equipment slots (right column, starts below info box)
+        let equipY = equipStartY + 28;
         const equipment = player.equipment ?? { weapon: null, shield: null, accessory: null };
 
         const slots = [
-            { label: '⚔️  Weapon', item: equipment.weapon },
-            { label: '🛡️  Shield', item: equipment.shield },
-            { label: '💍 Accessory', item: equipment.accessory }
+            {
+                label: '⚔️  Weapon',
+                item: equipment.weapon,
+                emptyInfo: 'No weapon equipped.\nBare fists deal 2–4 base\ndamage scaled by Strength.',
+            },
+            {
+                label: '🛡️  Shield',
+                item: equipment.shield,
+                emptyInfo: 'No shield equipped.\nShields improve Guard and\ncan reduce incoming damage.',
+            },
+            {
+                label: '💍 Accessory',
+                item: equipment.accessory,
+                emptyInfo: 'No accessory equipped.\nAccessories provide unique\nbonuses with no requirements.',
+            },
         ];
 
         slots.forEach(slot => {
             const itemName = slot.item ? slot.item.name : 'Empty';
             const itemColor = slot.item ? '#ffffff' : '#4b5563';
-            CharacterSheetPanel.addStatRow(scene, cc, slot.label, itemName, colRight, equipY, itemColor);
+
+            // Build info text for this slot
+            const hoverInfo = slot.item
+                ? [
+                    slot.item.name,
+                    slot.item.description,
+                    '',
+                    ...slot.item.modifiers.map(m =>
+                        `${m.value > 0 ? '+' : ''}${m.value} ${m.stat}`
+                    ),
+                    slot.item.requirement
+                        ? `Requires ${slot.item.requirement.stat} ${slot.item.requirement.value}`
+                        : ''
+                ].filter(Boolean).join('\n')
+                : slot.emptyInfo;
+
+            CharacterSheetPanel.addStatRow(
+                scene, cc, slot.label, itemName, colRight, equipY,
+                itemColor,
+                () => showInfo(hoverInfo),
+                clearInfo
+            );
             equipY += 24;
         });
 
-        // 🔥 NEW: Divider line
-        y += 16;
+        // --- DIVIDER ---
+        const dividerY = Math.max(y, equipY) + 12;
         const divider = scene.add.graphics();
         divider.lineStyle(1, 0x1e293b, 1);
-        divider.moveTo(0, y);
-        divider.lineTo(460, y); // panel width - padding
+        divider.moveTo(0, dividerY);
+        divider.lineTo(460, dividerY);
         divider.strokePath();
         cc.add(divider);
-        y += 16;
 
-        // 🔥 NEW: RELICS section
-        CharacterSheetPanel.addSectionHeader(scene, cc, 'RELICS', colLeft, y);
+        // --- RELICS ---
+        let relicY = dividerY + 16;
+        CharacterSheetPanel.addSectionHeader(scene, cc, 'RELICS', colLeft, relicY);
 
-        // Relic count badge e.g. "2 / 5"
         const relics = player.relics ?? [];
-        const relicCountText = scene.add.text(460, y, `${relics.length} / 5`, {
-            fontFamily: 'Verdana',
-            fontSize: '11px',
-            color: '#64748b',
-            fontStyle: 'bold'
+        const relicCountText = scene.add.text(460, relicY, `${relics.length} / 5`, {
+            fontFamily: 'Verdana', fontSize: '11px', color: '#64748b', fontStyle: 'bold'
         }).setOrigin(1, 0);
         cc.add(relicCountText);
 
-        y += 24;
-
-        const MAX_RELICS = 5;
+        relicY += 24;
 
         if (relics.length === 0) {
-            // Empty state message
-            const emptyText = scene.add.text(0, y, 'No relics collected yet.', {
-                fontFamily: 'Verdana',
-                fontSize: '13px',
-                color: '#4b5563',
-                fontStyle: 'italic'
-            });
+            const emptyText = scene.add.text(0, relicY, 'No relics collected yet.', {
+                fontFamily: 'Verdana', fontSize: '13px', color: '#4b5563', fontStyle: 'italic'
+            }).setInteractive({ useHandCursor: true });
+            emptyText.on('pointerover', () => showInfo('Relics are passive items\ncollected during your run.\nYou can hold up to 5.'));
+            emptyText.on('pointerout', () => clearInfo());
             cc.add(emptyText);
         } else {
-            // Show each relic as a row
             relics.forEach((relic, index) => {
-                CharacterSheetPanel.addRelicRow(scene, cc, relic, index, y);
-                y += 28;
+                CharacterSheetPanel.addRelicRow(scene, cc, relic, index, relicY, showInfo, clearInfo);
+                relicY += 28;
             });
 
-            // Fill remaining empty slots with dashes so player can see capacity
-            for (let i = relics.length; i < MAX_RELICS; i++) {
-                const emptySlot = scene.add.text(0, y, `— Empty slot`, {
-                    fontFamily: 'Verdana',
-                    fontSize: '12px',
-                    color: '#1e293b'
+            for (let i = relics.length; i < 5; i++) {
+                const emptySlot = scene.add.text(0, relicY, `— Empty slot`, {
+                    fontFamily: 'Verdana', fontSize: '12px', color: '#1e293b'
                 });
                 cc.add(emptySlot);
-                y += 28;
+                relicY += 28;
             }
         }
     }
 
     // --- PRIVATE HELPERS ---
 
-    // 🔥 NEW: Relic row helper
-    private static addRelicRow(
+    private static addSectionHeader(
         scene: Phaser.Scene,
         container: Phaser.GameObjects.Container,
-        relic: any,
-        index: number,
+        label: string,
+        x: number,
         y: number
     ) {
-        // Small index number
-        const indexText = scene.add.text(0, y, `${index + 1}.`, {
-            fontFamily: 'Verdana',
-            fontSize: '12px',
-            color: '#64748b'
-        });
-
-        // Relic name
-        const nameText = scene.add.text(20, y, relic.name, {
-            fontFamily: 'Verdana',
-            fontSize: '13px',
-            color: '#fbbf24', // gold colour — relics feel special
-            fontStyle: 'bold'
-        });
-
-        // Relic description — truncated if too long
-        const desc = relic.description.length > 45
-            ? relic.description.substring(0, 42) + '...'
-            : relic.description;
-
-        const descText = scene.add.text(20, y + 14, desc, {
-            fontFamily: 'Verdana',
-            fontSize: '11px',
-            color: '#94a3b8'
-        });
-
-        container.add([indexText, nameText, descText]);
-    }
-
-    private static addSectionHeader(
-            scene: Phaser.Scene,
-            container: Phaser.GameObjects.Container,
-            label: string,
-            x: number,
-            y: number
-        ) {
         container.add(
             scene.add.text(x, y, label, {
-                fontFamily: 'Verdana',
-                fontSize: '11px',
-                color: '#64748b',
-                fontStyle: 'bold',
-                letterSpacing: 2
+                fontFamily: 'Verdana', fontSize: '11px',
+                color: '#64748b', fontStyle: 'bold', letterSpacing: 2
             })
         );
     }
@@ -263,20 +275,101 @@ export class CharacterSheetPanel {
         value: string,
         x: number,
         y: number,
-        valueColor: string = '#e2e8f0'
+        valueColor: string = '#e2e8f0',
+        onHover?: () => void,
+        onOut?: () => void
     ) {
-        container.add([
-            scene.add.text(x, y, label, {
-                fontFamily: 'Verdana',
-                fontSize: '13px',
-                color: '#94a3b8'
-            }),
-            scene.add.text(x + 200, y, value, {
-                fontFamily: 'Verdana',
-                fontSize: '13px',
-                color: valueColor,
-                fontStyle: 'bold'
-            }).setOrigin(1, 0)
-        ]);
+        const labelText = scene.add.text(x, y, label, {
+            fontFamily: 'Verdana', fontSize: '13px', color: '#94a3b8'
+        });
+
+        const valueText = scene.add.text(x + 200, y, value, {
+            fontFamily: 'Verdana', fontSize: '13px', color: valueColor, fontStyle: 'bold'
+        }).setOrigin(1, 0);
+
+        if (onHover) {
+            labelText.setInteractive({ useHandCursor: true });
+            labelText.on('pointerover', () => { labelText.setColor('#ffffff'); onHover(); });
+            labelText.on('pointerout', () => { labelText.setColor('#94a3b8'); onOut?.(); });
+        }
+
+        container.add([labelText, valueText]);
+    }
+
+    private static addAttackRow(
+        scene: Phaser.Scene,
+        container: Phaser.GameObjects.Container,
+        player: PlayerData,
+        x: number,
+        y: number,
+        showInfo: (text: string) => void,
+        clearInfo: () => void
+    ) {
+        const ranges = StatCalculator.getAllAttackRanges(player);
+        const atk = StatCalculator.getAttackValue(player);
+
+        const weapon = player.equipment?.weapon;
+        const scalingRaw = weapon?.scalingStat;
+        const scalingLabel = !scalingRaw
+            ? 'Strength'
+            : Array.isArray(scalingRaw)
+                ? scalingRaw.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' or ')
+                : scalingRaw.charAt(0).toUpperCase() + scalingRaw.slice(1);
+
+        const hoverInfo = [
+            `Scales with: ${scalingLabel}`,
+            '',
+            `⚡ Quick   ${ranges.quick.min}–${ranges.quick.max}`,
+            `⚔️  Normal  ${ranges.normal.min}–${ranges.normal.max}`,
+            `💥 Power   ${ranges.power.min}–${ranges.power.max}`,
+        ].join('\n');
+
+        const labelText = scene.add.text(x, y, '⚔️  Attack', {
+            fontFamily: 'Verdana', fontSize: '13px', color: '#94a3b8'
+        }).setInteractive({ useHandCursor: true });
+
+        const valueText = scene.add.text(x + 200, y, `${atk.min} – ${atk.max}`, {
+            fontFamily: 'Verdana', fontSize: '13px', color: '#e2e8f0', fontStyle: 'bold'
+        }).setOrigin(1, 0);
+
+        labelText.on('pointerover', () => { labelText.setColor('#ffffff'); showInfo(hoverInfo); });
+        labelText.on('pointerout', () => { labelText.setColor('#94a3b8'); clearInfo(); });
+
+        container.add([labelText, valueText]);
+    }
+
+    private static addRelicRow(
+        scene: Phaser.Scene,
+        container: Phaser.GameObjects.Container,
+        relic: any,
+        index: number,
+        y: number,
+        showInfo: (text: string) => void,
+        clearInfo: () => void
+    ) {
+        const indexText = scene.add.text(0, y, `${index + 1}.`, {
+            fontFamily: 'Verdana', fontSize: '12px', color: '#64748b'
+        });
+
+        const nameText = scene.add.text(20, y, relic.name, {
+            fontFamily: 'Verdana', fontSize: '13px', color: '#fbbf24', fontStyle: 'bold'
+        }).setInteractive({ useHandCursor: true });
+
+        const descText = scene.add.text(20, y + 14, relic.description.length > 45
+            ? relic.description.substring(0, 42) + '...'
+            : relic.description, {
+            fontFamily: 'Verdana', fontSize: '11px', color: '#94a3b8'
+        });
+
+        nameText.on('pointerover', () => {
+            nameText.setColor('#fde68a');
+            showInfo(`${relic.name}\n\n${relic.description}`);
+        });
+        nameText.on('pointerout', () => {
+            nameText.setColor('#fbbf24');
+            clearInfo();
+        });
+
+        container.add([indexText, nameText, descText]);
     }
 }

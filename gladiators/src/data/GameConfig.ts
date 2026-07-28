@@ -25,7 +25,7 @@ export const GameConfig = {
         HIT_CHANCE_PER_PRECISION: 2, // Percentage %
         CRIT_CHANCE_MODIFIER: 0.2,    // Percentage %
 
-        ATK_RANGE_BONUS: 2, 
+        
     },
 
     // UI & Visuals

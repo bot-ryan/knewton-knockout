@@ -10,11 +10,11 @@ import { SceneKeys } from '../data/SceneKeys';
 import { usePlayerStore } from '../data/PlayerData';
 import { type StatKey, type Expression } from '../types/models';
 import bannedWordsRaw from '../../public/assets/banned_words.txt?raw';
+import { ATTACK_MULTIPLIERS, BARE_FIST_BASE } from '../utils/CombatEngine'; // 🔥 NEW
 
 export default class CharacterCreateScene extends Phaser.Scene {
     constructor() { super(SceneKeys.CharacterCreate); }
 
-    // ---------- STATE ----------
     private readonly FREE_POINTS: number = GameConfig.CHARACTER.STARTING_POINTS;
     private pointsRemaining: number = this.FREE_POINTS;
     private stats: Record<StatKey, number> = {
@@ -27,23 +27,22 @@ export default class CharacterCreateScene extends Phaser.Scene {
     };
 
     private nameValue = '';
-    private currentSkinColor = 0x3498db; 
+    private currentSkinColor = 0x3498db;
     private currentExpression: Expression = 'poker';
 
     private BANNED_WORDS: string[] = [];
     private readonly DUMMY_NAMES = ["The Bad Mouth", "Silly Goose", "Keyboard Masher", "Default Dave", "Mr. No-Name", "Lord Fluffbottom"];
 
     private readonly faceMoods: Expression[] = [
-        'poker', 'happy', 'sad', 'angry', 'wink', 
+        'poker', 'happy', 'sad', 'angry', 'wink',
         'determined', 'battle_cry', 'smirk', 'fearful', 'nervous'
     ];
-    
+
     private readonly faceGlyphs = [
         '😐', '😊', '😓', '😠', '😉',
         '🥺', '🤨', '😵', '😮', '😖'
     ];
 
-    // UI Refs
     private nameInput?: Phaser.GameObjects.DOMElement;
     private nameErrorText?: Phaser.GameObjects.Text;
     private pointsText?: Phaser.GameObjects.Text;
@@ -64,9 +63,9 @@ export default class CharacterCreateScene extends Phaser.Scene {
             this.BANNED_WORDS = bannedWordsRaw.split('\n').map((w: string) => w.trim().toLowerCase()).filter((w: string) => w.length > 0);
         }
         const margin = 20;
-        const nameH = 80; 
+        const nameH = 80;
         const leftColW = Math.floor(width * 0.32);
-        const colRightX = leftColW + 110; 
+        const colRightX = leftColW + 110;
         const colRightW = width - colRightX - margin;
         const halfW = colRightW / 2;
         const previewH = height - margin * 2;
@@ -98,7 +97,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const inputStyle = `width:${inputW}px; height:${inputH}px; background:#0f1422; color:#fff; border:1px solid #22304c; padding:0 8px; font-family:Verdana; outline:none;`;
         this.nameInput = this.add.dom(leftColW / 2, (nameH / 2), 'input', inputStyle);
         const el = this.nameInput.node as HTMLInputElement;
-        el.maxLength = 40; 
+        el.maxLength = 40;
         el.placeholder = "Enter Name...";
 
         this.nameErrorText = this.add.text(leftColW / 2, nameH - 12, '', { fontSize: '10px', color: '#ff4d4d', fontStyle: 'bold' }).setOrigin(0.5);
@@ -115,7 +114,7 @@ export default class CharacterCreateScene extends Phaser.Scene {
         const pBoxSize = 60;
         const pPanel = this.add.container(leftColW - pBoxSize - 10, 30);
         pPanel.add(this.add.rectangle(0, 0, pBoxSize, pBoxSize, 0x141a2a).setOrigin(0).setStrokeStyle(2, 0x22304c));
-        this.pointsText = this.add.text(pBoxSize/2, pBoxSize/2, '9', {fontSize: '32px', color: '#e2c16b', fontFamily:'Georgia'}).setOrigin(0.5);
+        this.pointsText = this.add.text(pBoxSize / 2, pBoxSize / 2, '9', { fontSize: '32px', color: '#e2c16b', fontFamily: 'Georgia' }).setOrigin(0.5);
         pPanel.add(this.pointsText);
         skillPanel.add(pPanel);
 
@@ -137,37 +136,36 @@ export default class CharacterCreateScene extends Phaser.Scene {
         };
 
         const statKeys: StatKey[] = ['strength', 'dexterity', 'precision', 'guard', 'vitality', 'arcane'];
-        const controlX = leftColW - 60; 
+        const controlX = leftColW - 60;
         statKeys.forEach((key, i) => {
-            const y = 110 + (i * 45); 
+            const y = 110 + (i * 45);
             const label = this.add.text(20, y, key.toUpperCase(), { fontSize: '13px', color: '#9aa4b2' }).setInteractive({ useHandCursor: true });
-            label.on('pointerover', () => { label.setColor('#fff'); if(this.descText) this.descText.setText(statDescriptions[key]); });
-            label.on('pointerout', () => { label.setColor('#9aa4b2'); if(this.descText) this.descText.setText("Hover over a stat to see details."); });
+            label.on('pointerover', () => { label.setColor('#fff'); if (this.descText) this.descText.setText(statDescriptions[key]); });
+            label.on('pointerout', () => { label.setColor('#9aa4b2'); if (this.descText) this.descText.setText("Hover over a stat to see details."); });
 
             skillPanel.add(label);
             const valText = this.add.text(controlX, y + 8, GameConfig.CHARACTER.MIN_STAT_VALUE.toString(), { fontSize: '18px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
             const minus = ButtonCreator.makeIconButton(this, controlX - 49, y - 4, '–', () => this.decStat(key));
             const plus = ButtonCreator.makeIconButton(this, controlX + 21, y - 4, '+', () => this.incStat(key));
             this.statTexts[key] = valText;
-            this.minusButtons[key] = minus; 
+            this.minusButtons[key] = minus;
             this.plusButtons[key] = plus;
             skillPanel.add([minus, valText, plus]);
         });
 
-        settingsPanel.add(this.add.text(20, 80, 'BODY COLOR PALETTE', {fontSize:'14px', color:'#9aa4b2', fontStyle:'bold'}));
+        settingsPanel.add(this.add.text(20, 80, 'BODY COLOR PALETTE', { fontSize: '14px', color: '#9aa4b2', fontStyle: 'bold' }));
         const pickerSize = settingsPanelW * 0.7;
         new ColorPicker(this, 20, 110, pickerSize, (c) => { this.currentSkinColor = c; this.redrawStickman(); }, settingsPanel);
 
-        // Expression Buttons: Now a 5x2 grid for 10 emojis
         settingsPanel.add(this.add.text(20, pickerSize + 130, 'FACIAL EXPRESSION', { fontSize: '14px', color: '#9aa4b2', fontStyle: 'bold' }));
-        
+
         const cols = 5;
         this.faceMoods.forEach((mood, i) => {
             const row = Math.floor(i / cols);
             const col = i % cols;
-            const x = 32 + (col * 42); 
+            const x = 32 + (col * 42);
             const y = pickerSize + 175 + (row * 50);
-            
+
             const btn = ButtonCreator.makeRoundButton(this, x, y, 20, 0x1c2740, this.faceGlyphs[i], () => {
                 this.currentExpression = mood;
                 this.redrawStickman();
@@ -192,12 +190,11 @@ export default class CharacterCreateScene extends Phaser.Scene {
                     if (this.nameInput) (this.nameInput.node as HTMLInputElement).value = dummyName;
                     if (this.nameErrorText) {
                         this.nameErrorText.setText("I WARNED YOU!!");
-                        this.time.delayedCall(3000, () => { if(this.nameErrorText) this.nameErrorText.setText(''); });
+                        this.time.delayedCall(3000, () => { if (this.nameErrorText) this.nameErrorText.setText(''); });
                     }
                 }
             }
 
-            // Calculate secondary stats
             const maxHp = GameConfig.SCALING.HP_BASE + (this.stats.vitality * GameConfig.SCALING.HP_PER_VITALITY);
             const maxMp = GameConfig.SCALING.MP_BASE + (this.stats.arcane * GameConfig.SCALING.MP_PER_ARCANE);
             const maxStamina = GameConfig.SCALING.STAMINA_BASE + (this.stats.vitality * GameConfig.SCALING.STAMINA_PER_VITALITY);
@@ -206,13 +203,17 @@ export default class CharacterCreateScene extends Phaser.Scene {
             const hitChance = this.stats.precision * GameConfig.SCALING.HIT_CHANCE_PER_PRECISION;
             const crit = (this.stats.precision - 1) * GameConfig.SCALING.CRIT_CHANCE_MODIFIER;
 
-            // Prepare character data
+            // 🔥 CHANGED: use same constants as CombatEngine — bare fist NORMAL attack
+            const statBonus = Math.floor(this.stats.strength * 0.5);
+            const atkMin = Math.max(1, Math.floor(BARE_FIST_BASE.min * ATTACK_MULTIPLIERS['NORMAL']) + statBonus);
+            const atkMax = Math.max(1, Math.floor(BARE_FIST_BASE.max * ATTACK_MULTIPLIERS['NORMAL']) + statBonus);
+
             const characterData = {
                 name: this.nameValue,
                 appearance: {
                     skinColor: this.currentSkinColor,
-                    hairColor: 0x8B4513, // Default brown hair
-                    hairStyle: 1, // Default style
+                    hairColor: 0x8B4513,
+                    hairStyle: 1,
                     expression: this.currentExpression
                 },
                 stats: { ...this.stats },
@@ -220,27 +221,31 @@ export default class CharacterCreateScene extends Phaser.Scene {
                     hp: { current: maxHp, max: maxHp },
                     mp: { current: maxMp, max: maxMp },
                     stamina: { current: maxStamina, max: maxStamina },
-                    atk: { min: this.stats.strength, max: this.stats.strength + GameConfig.SCALING.ATK_RANGE_BONUS },
+                    atk: { min: atkMin, max: atkMax }, 
                     speed, block, hitChance, crit
-                }
+                },
+                equipment: {         
+                    weapon: null,
+                    shield: null,
+                    accessory: null
+                },
+                relics: []           
             };
 
-            usePlayerStore.getState().setPlayerData(characterData); 
-
-            // Navigate to OpenMap with character data
+            usePlayerStore.getState().setPlayerData(characterData);
             this.scene.start(SceneKeys.OpenMap, { character: characterData });
         });
 
         ButtonCreator.makeRoundButton(this, width - 130, height - 60, 30, 0xaa3d3d, '✗', () => this.scene.start(SceneKeys.MainMenu));
 
         this.stickman = new Stickman(
-            this, 
-            colRightX + (halfW - 10) / 2, 
-            margin + (previewH) * 0.37, 
-            this.currentSkinColor, 
+            this,
+            colRightX + (halfW - 10) / 2,
+            margin + (previewH) * 0.37,
+            this.currentSkinColor,
             this.currentExpression
         );
-        
+
         const previewPanelLeft = colRightX + 20;
         const previewPanelRight = colRightX + (halfW - 10) / 2 + 10;
         const statsBaseY = margin + (previewH) * 0.65;
@@ -248,9 +253,8 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
         this.secondaryStatTexts.hp = this.add.text(previewPanelLeft, statsBaseY, 'HEALTH: 0', statStyle);
         this.secondaryStatTexts.mp = this.add.text(previewPanelLeft, statsBaseY + 35, 'MANA: 0', statStyle);
-        this.secondaryStatTexts.stamina = this.add.text(previewPanelLeft, statsBaseY + 70, 'STAMINA: 0', statStyle); 
+        this.secondaryStatTexts.stamina = this.add.text(previewPanelLeft, statsBaseY + 70, 'STAMINA: 0', statStyle);
         this.secondaryStatTexts.atk = this.add.text(previewPanelLeft, statsBaseY + 105, 'ATTACK: 0', statStyle);
-        
 
         this.secondaryStatTexts.speed = this.add.text(previewPanelRight, statsBaseY, 'SPEED: 0', statStyle);
         this.secondaryStatTexts.block = this.add.text(previewPanelRight, statsBaseY + 35, 'BLOCK CHANCE: 0', statStyle);
@@ -306,10 +310,10 @@ export default class CharacterCreateScene extends Phaser.Scene {
         if (this.nameErrorText) this.nameErrorText.setText(nameStatus.error);
         const canAdd = this.pointsRemaining > 0;
         (Object.keys(this.stats) as StatKey[]).forEach(k => {
-            if(this.plusButtons[k]) ButtonCreator.setButtonEnabled(this.plusButtons[k]!, canAdd);
-            if(this.minusButtons[k]) ButtonCreator.setButtonEnabled(this.minusButtons[k]!, this.stats[k] > GameConfig.CHARACTER.MIN_STAT_VALUE);
+            if (this.plusButtons[k]) ButtonCreator.setButtonEnabled(this.plusButtons[k]!, canAdd);
+            if (this.minusButtons[k]) ButtonCreator.setButtonEnabled(this.minusButtons[k]!, this.stats[k] > GameConfig.CHARACTER.MIN_STAT_VALUE);
         });
-        if(this.confirmBtn) ButtonCreator.setButtonEnabled(this.confirmBtn, this.pointsRemaining === 0);
+        if (this.confirmBtn) ButtonCreator.setButtonEnabled(this.confirmBtn, this.pointsRemaining === 0);
     }
 
     private createPanel(x: number, y: number, w: number, h: number, title: string) {
@@ -319,35 +323,40 @@ export default class CharacterCreateScene extends Phaser.Scene {
         return c;
     }
 
-    private incStat(key: StatKey) { if(this.pointsRemaining > 0) { this.stats[key]++; this.pointsRemaining--; this.refreshStatsUI(); } }
-    private decStat(key: StatKey) { if(this.stats[key] > GameConfig.CHARACTER.MIN_STAT_VALUE) { this.stats[key]--; this.pointsRemaining++; this.refreshStatsUI(); } }
-    
+    private incStat(key: StatKey) { if (this.pointsRemaining > 0) { this.stats[key]++; this.pointsRemaining--; this.refreshStatsUI(); } }
+    private decStat(key: StatKey) { if (this.stats[key] > GameConfig.CHARACTER.MIN_STAT_VALUE) { this.stats[key]--; this.pointsRemaining++; this.refreshStatsUI(); } }
+
     private refreshStatsUI() {
-        (Object.keys(this.stats) as StatKey[]).forEach(k => { if(this.statTexts[k]) this.statTexts[k]!.setText(String(this.stats[k])); });
-        if(this.pointsText) this.pointsText.setText(String(this.pointsRemaining));
+        (Object.keys(this.stats) as StatKey[]).forEach(k => { if (this.statTexts[k]) this.statTexts[k]!.setText(String(this.stats[k])); });
+        if (this.pointsText) this.pointsText.setText(String(this.pointsRemaining));
+
         const hp = GameConfig.SCALING.HP_BASE + (this.stats.vitality * GameConfig.SCALING.HP_PER_VITALITY);
         const mp = GameConfig.SCALING.MP_BASE + (this.stats.arcane * GameConfig.SCALING.MP_PER_ARCANE);
-        const stamina = GameConfig.SCALING.STAMINA_BASE + (this.stats.vitality * GameConfig.SCALING.STAMINA_PER_VITALITY); 
+        const stamina = GameConfig.SCALING.STAMINA_BASE + (this.stats.vitality * GameConfig.SCALING.STAMINA_PER_VITALITY);
         const speed = GameConfig.SCALING.SPEED_BASE + (this.stats.dexterity * GameConfig.SCALING.SPEED_PER_DEXTERITY);
         const block = this.stats.guard * GameConfig.SCALING.BLOCK_PER_GUARD;
         const hitChance = this.stats.precision * GameConfig.SCALING.HIT_CHANCE_PER_PRECISION;
         const crit = ((this.stats.precision - 1) * GameConfig.SCALING.CRIT_CHANCE_MODIFIER).toFixed(1);
-        
+
+        // 🔥 CHANGED: bare fist preview using same constants as CombatEngine
+        const statBonus = Math.floor(this.stats.strength * 0.5);
+        const atkMin = Math.max(1, Math.floor(BARE_FIST_BASE.min * ATTACK_MULTIPLIERS['NORMAL']) + statBonus);
+        const atkMax = Math.max(1, Math.floor(BARE_FIST_BASE.max * ATTACK_MULTIPLIERS['NORMAL']) + statBonus);
+
         if (this.secondaryStatTexts.hp) this.secondaryStatTexts.hp.setText(`HEALTH: ${hp}`);
         if (this.secondaryStatTexts.mp) this.secondaryStatTexts.mp.setText(`MANA: ${mp}`);
-        if (this.secondaryStatTexts.stamina) this.secondaryStatTexts.stamina.setText(`STAMINA: ${stamina}`); 
-        if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATTACK: ${this.stats.strength}-${this.stats.strength + GameConfig.SCALING.ATK_RANGE_BONUS}`);
-       
-        
+        if (this.secondaryStatTexts.stamina) this.secondaryStatTexts.stamina.setText(`STAMINA: ${stamina}`);
+        if (this.secondaryStatTexts.atk) this.secondaryStatTexts.atk.setText(`ATTACK: ${atkMin}–${atkMax}`); // 🔥 CHANGED
         if (this.secondaryStatTexts.speed) this.secondaryStatTexts.speed.setText(`SPEED: ${speed}`);
         if (this.secondaryStatTexts.block) this.secondaryStatTexts.block.setText(`BLOCK CHANCE: ${block}%`);
         if (this.secondaryStatTexts.hit) this.secondaryStatTexts.hit.setText(`HIT CHANCE: ${hitChance}%`);
         if (this.secondaryStatTexts.crit) this.secondaryStatTexts.crit.setText(`CRIT CHANCE: ${crit}%`);
+
         this.updateButtons();
     }
 
     private generateVikingName(): string {
-        const fn = faker.person.firstName('male'); 
+        const fn = faker.person.firstName('male');
         const title = faker.word.adjective();
         const animal = faker.animal.type();
         return `${fn} the ${title} ${animal}`.replace(/\b\w/g, l => l.toUpperCase());

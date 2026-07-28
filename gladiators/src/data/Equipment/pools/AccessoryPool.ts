@@ -12,7 +12,7 @@ export const ACCESSORY_POOL: Equipment[] = [
         rarity: 'common',
         tier: 'beginner',
         modifiers: [
-            { stat: 'stamina', value: 10 }  // flat stamina bonus
+            { stat: 'vitality', value: 2 }  // flat vitality bonus
         ]
     },
     {
@@ -38,7 +38,7 @@ export const ACCESSORY_POOL: Equipment[] = [
         tier: 'standard',
         modifiers: [
             { stat: 'dexterity', value: 3 },
-            { stat: 'stamina', value: 8 }
+            { stat: 'vitality', value: 1 }
         ]
     },
     {
@@ -49,8 +49,7 @@ export const ACCESSORY_POOL: Equipment[] = [
         rarity: 'uncommon',
         tier: 'standard',
         modifiers: [
-            { stat: 'stamina', value: 20 },
-            { stat: 'vitality', value: 1 }
+            { stat: 'vitality', value: 3 }
         ],
         flavourText: 'Endurance is its own weapon.'
     },
