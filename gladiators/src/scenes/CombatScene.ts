@@ -155,6 +155,22 @@ export default class CombatScene extends Phaser.Scene {
         this.showPreBattleScreen();
     }
 
+    private warnIfUnderequipped(): number {
+        const weapon = this.playerState.equipment?.weapon;
+        if (!weapon) return 0;
+
+        const penalty = StatCalculator.getRequirementPenalty(this.playerState, weapon);
+        if (penalty > 0) {
+            const shortfall = StatCalculator.getRequirementShortfall(this.playerState, weapon);
+            this.logBox.log(
+                `You struggle with the ${weapon.name}! ` +
+                `(-${penalty} stamina, need ${weapon.requirement!.value} ` +
+                `${weapon.requirement!.stat}, have ${weapon.requirement!.value - shortfall})`
+            );
+        }
+        return penalty;
+    }
+
     private showPreBattleScreen() {
         const { width, height } = this.scale;
         const vsContainer = this.add.container(0, 0).setDepth(100);
@@ -297,15 +313,26 @@ export default class CombatScene extends Phaser.Scene {
         this.turnState = 'LOCKED';
 
         const cost = CombatEngine.getActionCost(type);
+
         if (type !== 'REST') {
-            this.playerState.secondaryStats.stamina.current = Math.max(0, this.playerState.secondaryStats.stamina.current - cost);
-            this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
+            // 🔥 CHANGED: base cost + requirement penalty for attack actions
+            const penalty = ['QUICK', 'NORMAL', 'POWER', 'CHARGE'].includes(type)
+                ? this.warnIfUnderequipped()
+                : 0;
+
+            this.playerState.secondaryStats.stamina.current = Math.max(
+                0,
+                this.playerState.secondaryStats.stamina.current - cost - penalty
+            );
+            this.playerStaminaBar.update(
+                this.playerState.secondaryStats.stamina.current,
+                this.playerState.secondaryStats.stamina.max
+            );
         }
 
         if (type === 'CHARGE') {
-            // 🔥 CHANGED: dexterity read through effective stats
             const effective = StatCalculator.getEffectiveStats(this.playerState);
-            const chargeRange = CombatEngine.getChargeRange(effective.dexterity); // was: playerState.stats.dexterity
+            const chargeRange = CombatEngine.getChargeRange(effective.dexterity);
             const distance = this.getDistance();
             const willReach = distance <= chargeRange;
 
@@ -339,7 +366,7 @@ export default class CombatScene extends Phaser.Scene {
             );
 
             if (hits) {
-                const dmg = this.resolvePlayerDamage(type as AttackType); // 🔥 CHANGED
+                const dmg = this.resolvePlayerDamage(type as AttackType);
                 this.applyDamageToEnemy(dmg);
             } else {
                 this.logBox.log(`You missed!`);
@@ -354,7 +381,10 @@ export default class CombatScene extends Phaser.Scene {
                 this.playerState.secondaryStats.stamina.max,
                 this.playerState.secondaryStats.stamina.current + recovery
             );
-            this.playerStaminaBar.update(this.playerState.secondaryStats.stamina.current, this.playerState.secondaryStats.stamina.max);
+            this.playerStaminaBar.update(
+                this.playerState.secondaryStats.stamina.current,
+                this.playerState.secondaryStats.stamina.max
+            );
             this.time.delayedCall(300, () => this.processEnemyTurn());
         }
     }

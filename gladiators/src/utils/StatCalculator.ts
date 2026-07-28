@@ -1,6 +1,6 @@
 // src/utils/StatCalculator.ts
 import type { PlayerData } from '../data/PlayerData';
-import type { ScalingStat } from '../data/Equipment/EquipmentTypes';
+import type { Equipment, ScalingStat } from '../data/Equipment/EquipmentTypes';
 import { ATTACK_MULTIPLIERS, BARE_FIST_BASE } from './CombatEngine';
 
 export class StatCalculator {
@@ -64,5 +64,25 @@ export class StatCalculator {
             min: ranges.quick.min,
             max: ranges.power.max
         };
+    }
+
+    // 🔥 NEW: checks base stats (not effective) — requirement is about raw ability
+    static meetsRequirement(player: PlayerData, item: Equipment): boolean {
+        if (!item.requirement) return true;
+        return (player.stats[item.requirement.stat as keyof typeof player.stats] ?? 0)
+            >= item.requirement.value;
+    }
+
+    // 🔥 NEW: how many points short — 0 means requirement met
+    static getRequirementShortfall(player: PlayerData, item: Equipment): number {
+        if (!item.requirement) return 0;
+        const playerStat = player.stats[item.requirement.stat as keyof typeof player.stats] ?? 0;
+        return Math.max(0, item.requirement.value - playerStat);
+    }
+
+    // 🔥 NEW: extra stamina cost for using a weapon you don't meet the requirement for
+    // 2 extra stamina per missing stat point — noticeable but not instantly crippling
+    static getRequirementPenalty(player: PlayerData, item: Equipment): number {
+        return StatCalculator.getRequirementShortfall(player, item) * 2;
     }
 }

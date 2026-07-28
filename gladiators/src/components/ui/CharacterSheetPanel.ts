@@ -179,24 +179,47 @@ export class CharacterSheetPanel {
             },
         ];
 
+        // Replace the slots.forEach block with this:
         slots.forEach(slot => {
-            const itemName = slot.item ? slot.item.name : 'Empty';
-            const itemColor = slot.item ? '#ffffff' : '#4b5563';
+            const item = slot.item;
+            const itemName = item ? item.name : 'Empty';
 
-            // Build info text for this slot
-            const hoverInfo = slot.item
-                ? [
-                    slot.item.name,
-                    slot.item.description,
+            // 🔥 NEW: check requirement — show red if not met
+            const meetsReq = item ? StatCalculator.meetsRequirement(player, item) : true;
+            const itemColor = !item
+                ? '#4b5563'              // empty — gray
+                : meetsReq
+                    ? '#ffffff'          // equipped and requirement met — white
+                    : '#ef4444';         // equipped but requirement NOT met — red warning
+
+            // Build hover info
+            let hoverInfo: string;
+            if (!item) {
+                hoverInfo = slot.emptyInfo;
+            } else {
+                const modifierLines = item.modifiers.map(m =>
+                    `${m.value > 0 ? '+' : ''}${m.value} ${m.stat}`
+                );
+
+                // 🔥 NEW: requirement line changes colour based on whether it's met
+                const reqLine = item.requirement
+                    ? meetsReq
+                        ? `✓ Requires ${item.requirement.stat} ${item.requirement.value}`
+                        : `✗ Requires ${item.requirement.stat} ${item.requirement.value} (NOT MET)`
+                    : 'No requirement';
+
+                hoverInfo = [
+                    item.name,
+                    item.description,
                     '',
-                    ...slot.item.modifiers.map(m =>
-                        `${m.value > 0 ? '+' : ''}${m.value} ${m.stat}`
-                    ),
-                    slot.item.requirement
-                        ? `Requires ${slot.item.requirement.stat} ${slot.item.requirement.value}`
+                    ...modifierLines,
+                    '',
+                    reqLine,
+                    !meetsReq
+                        ? `Penalty: +${StatCalculator.getRequirementPenalty(player, item)} stamina per attack`
                         : ''
-                ].filter(Boolean).join('\n')
-                : slot.emptyInfo;
+                ].filter(Boolean).join('\n');
+            }
 
             CharacterSheetPanel.addStatRow(
                 scene, cc, slot.label, itemName, colRight, equipY,
