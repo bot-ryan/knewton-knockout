@@ -39,6 +39,8 @@ interface PlayerStoreState extends PlayerData {
   updateSecondaryStats: (stats: Partial<PlayerData['secondaryStats']>) => void;
   addGold: (amount: number) => void;
   spendGold: (amount: number) => boolean; // — returns false if insufficient
+  equipItem: (item: Equipment) => void;       
+  unequipItem: (slot: Equipment['slot']) => void; 
   addRelic: (relic: Relic) => boolean;   // returns false if already at 5
   swapRelic: (remove: string, add: Relic) => boolean;  // drop one, gain one
 }

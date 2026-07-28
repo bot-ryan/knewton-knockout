@@ -221,9 +221,15 @@ export default class CharacterCreateScene extends Phaser.Scene {
                     hp: { current: maxHp, max: maxHp },
                     mp: { current: maxMp, max: maxMp },
                     stamina: { current: maxStamina, max: maxStamina },
-                    atk: { min: atkMin, max: atkMax }, // 🔥 CHANGED
+                    atk: { min: atkMin, max: atkMax }, 
                     speed, block, hitChance, crit
-                }
+                },
+                equipment: {         
+                    weapon: null,
+                    shield: null,
+                    accessory: null
+                },
+                relics: []           
             };
 
             usePlayerStore.getState().setPlayerData(characterData);

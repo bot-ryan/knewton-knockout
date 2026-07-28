@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { PanelOverlay } from './PanelOverlay';
 import { type PlayerData } from '../../data/PlayerData';
 import { StatCalculator } from '../../utils/StatCalculator';
-import { BARE_FIST_BASE, ATTACK_MULTIPLIERS } from '../../utils/CombatEngine';
+
 
 export class CharacterSheetPanel {
 
