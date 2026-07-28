@@ -33,22 +33,35 @@ export class StatCalculator {
         return effectiveStats[scalingStat] ?? 0;
     }
 
-    // 🔥 CHANGED: uses same constants as CombatEngine for NORMAL attack preview
-    static getAttackValue(player: PlayerData): { min: number; max: number } {
+    static getAllAttackRanges(player: PlayerData): {
+        quick: { min: number; max: number };
+        normal: { min: number; max: number };
+        power: { min: number; max: number };
+    } {
         const weapon = player.equipment?.weapon;
         const effectiveStats = StatCalculator.getEffectiveStats(player);
-
         const base = weapon?.baseDamage ?? BARE_FIST_BASE;
-        const scalingValue = StatCalculator.resolveScalingStat(
-            weapon?.scalingStat,
-            effectiveStats
-        );
+        const scalingValue = StatCalculator.resolveScalingStat(weapon?.scalingStat, effectiveStats);
         const statBonus = Math.floor(scalingValue * 0.5);
 
-        // Show NORMAL attack range in UI (multiplier 1.0 so base is unchanged)
+        const calc = (multiplier: number) => ({
+            min: Math.max(1, Math.floor(base.min * multiplier) + statBonus),
+            max: Math.max(1, Math.floor(base.max * multiplier) + statBonus)
+        });
+
         return {
-            min: Math.max(1, Math.floor(base.min  * ATTACK_MULTIPLIERS['NORMAL']) + statBonus),
-            max: Math.max(1, Math.floor(base.max * ATTACK_MULTIPLIERS['NORMAL']) + statBonus)
+            quick: calc(ATTACK_MULTIPLIERS['QUICK']),
+            normal: calc(ATTACK_MULTIPLIERS['NORMAL']),
+            power: calc(ATTACK_MULTIPLIERS['POWER'])
+        };
+    }
+
+    // Update getAttackValue to use getAllAttackRanges internally — single source of truth
+    static getAttackValue(player: PlayerData): { min: number; max: number } {
+        const ranges = StatCalculator.getAllAttackRanges(player);
+        return {
+            min: ranges.quick.min,  // lowest possible (min quick)
+            max: ranges.power.max   // highest possible (max power)
         };
     }
 }
