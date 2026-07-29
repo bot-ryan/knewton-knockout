@@ -57,6 +57,8 @@ export class CharacterSheetPanel {
         player: PlayerData,
         uiContainer?: Phaser.GameObjects.Container
     ) {
+        // 🔥 NEW: calculate once, used by both stats and attack sections
+        const effectiveStats = StatCalculator.getEffectiveStats(player);
         const panel = new PanelOverlay(scene, {
             title: 'CHARACTER SHEET',
             width: 500,
@@ -148,10 +150,40 @@ export class CharacterSheetPanel {
         ];
 
         primaryStats.forEach(stat => {
+            const statKey = stat.label.toLowerCase() as keyof typeof player.stats;
+            const baseVal = player.stats[statKey] ?? 0;
+            const effectVal = effectiveStats[statKey] ?? baseVal;
+            const bonus = effectVal - baseVal;
+
+            // 🔥 Color codes the value based on equipment effect
+            const valueColor = bonus > 0 ? '#34d399'  // green — buffed
+                : bonus < 0 ? '#ef4444'  // red — debuffed
+                    : '#e2e8f0';             // white — unchanged
+
+            // 🔥 Appends bonus/penalty inline so player sees it at a glance
+            const displayValue = bonus === 0
+                ? String(effectVal)
+                : bonus > 0
+                    ? `${effectVal}  (+${bonus})`
+                    : `${effectVal}  (${bonus})`;
+
+            // 🔥 Hover shows full breakdown in the info box
+            const hoverInfo = [
+                statDescriptions[stat.label] ?? '',
+                '',
+                `Base:       ${baseVal}`,
+                bonus !== 0
+                    ? `Equipment:  ${bonus > 0 ? '+' : ''}${bonus}`
+                    : '',
+                bonus !== 0
+                    ? `Total:      ${effectVal}`
+                    : ''
+            ].filter(Boolean).join('\n');
+
             CharacterSheetPanel.addStatRow(
-                scene, cc, stat.label, String(stat.value), colLeft, y,
-                '#e2e8f0',
-                () => showInfo(statDescriptions[stat.label] ?? ''),
+                scene, cc, stat.label, displayValue, colLeft, y,
+                valueColor,
+                () => showInfo(hoverInfo),
                 clearInfo
             );
             y += 24;
