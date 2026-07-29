@@ -179,23 +179,57 @@ export default class CombatScene extends Phaser.Scene {
         const bg = this.add.rectangle(0, 0, width, height, 0x000000, 0.85).setOrigin(0);
         vsContainer.add(bg);
 
-        const titleText = this.add.text(width / 2, 80, "TALE OF THE TAPE", { fontFamily: 'Verdana', fontSize: '32px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
-        const playerText = this.add.text(width / 2 - 200, 150, this.playerState.name.toUpperCase(), { fontFamily: 'Verdana', fontSize: '24px', color: '#3b82f6', fontStyle: 'bold' }).setOrigin(0.5);
-        const vsText = this.add.text(width / 2, 150, "VS", { fontFamily: 'Verdana', fontSize: '20px', color: '#7e87a2', fontStyle: 'italic' }).setOrigin(0.5);
-        const enemyText = this.add.text(width / 2 + 200, 150, this.enemyTemplate.displayName.toUpperCase(), { fontFamily: 'Verdana', fontSize: '24px', color: '#ef4444', fontStyle: 'bold' }).setOrigin(0.5);
+        // --- TITLE ---
+        vsContainer.add(
+            this.add.text(width / 2, 50, 'TALE OF THE TAPE', {
+                fontFamily: 'Verdana', fontSize: '32px', color: '#ffffff', fontStyle: 'bold'
+            }).setOrigin(0.5)
+        );
 
-        vsContainer.add([titleText, playerText, vsText, enemyText]);
+        // --- NAMES ---
+        vsContainer.add([
+            this.add.text(width / 2 - 220, 100, this.playerState.name.toUpperCase(), {
+                fontFamily: 'Verdana', fontSize: '20px', color: '#3b82f6', fontStyle: 'bold'
+            }).setOrigin(0.5),
+            this.add.text(width / 2, 100, 'VS', {
+                fontFamily: 'Verdana', fontSize: '16px', color: '#7e87a2', fontStyle: 'italic'
+            }).setOrigin(0.5),
+            this.add.text(width / 2 + 220, 100, this.enemyTemplate.displayName.toUpperCase(), {
+                fontFamily: 'Verdana', fontSize: '20px', color: '#ef4444', fontStyle: 'bold',
+                wordWrap: { width: 260 }, align: 'center'
+            }).setOrigin(0.5)
+        ]);
+
+        // --- SECTION HEADER HELPER ---
+        const addSectionHeader = (label: string, y: number) => {
+            vsContainer.add(
+                this.add.text(width / 2, y, label, {
+                    fontFamily: 'Verdana', fontSize: '11px',
+                    color: '#4b5563', letterSpacing: 3
+                }).setOrigin(0.5)
+            );
+        };
+
+        // --- EFFECTIVE PLAYER STATS ---
+        // 🔥 CHANGED: use effective stats so equipment bonuses are reflected
+        const effective = StatCalculator.getEffectiveStats(this.playerState);
+        const effectiveMaxHp = StatCalculator.getEffectiveMaxHp(this.playerState);
+        const effectiveMaxStamina = StatCalculator.getEffectiveMaxStamina(this.playerState);
 
         const statRows = [
-            { label: 'MAX HP', pVal: this.playerState.secondaryStats.hp.max, eVal: this.enemyTemplate.baseHp },
-            { label: 'STAMINA', pVal: this.playerState.secondaryStats.stamina.max, eVal: this.enemyTemplate.baseStamina },
-            { label: 'STRENGTH', pVal: this.playerState.stats.strength, eVal: this.enemyTemplate.stats.strength },
-            { label: 'DEXTERITY', pVal: this.playerState.stats.dexterity, eVal: this.enemyTemplate.stats.dexterity },
-            { label: 'PRECISION', pVal: this.playerState.stats.precision, eVal: this.enemyTemplate.stats.precision },
-            { label: 'GUARD', pVal: this.playerState.stats.guard, eVal: this.enemyTemplate.stats.guard }
+            { label: 'MAX HP', pVal: effectiveMaxHp, eVal: this.enemyTemplate.baseHp },
+            { label: 'STAMINA', pVal: effectiveMaxStamina, eVal: this.enemyTemplate.baseStamina },
+            { label: 'STRENGTH', pVal: effective['strength'] ?? 0, eVal: this.enemyTemplate.stats.strength },
+            { label: 'DEXTERITY', pVal: effective['dexterity'] ?? 0, eVal: this.enemyTemplate.stats.dexterity },
+            { label: 'PRECISION', pVal: effective['precision'] ?? 0, eVal: this.enemyTemplate.stats.precision },
+            { label: 'GUARD', pVal: effective['guard'] ?? 0, eVal: this.enemyTemplate.stats.guard }
         ];
 
-        const spacing = 45;
+        addSectionHeader('— STATS —', 135);
+
+        const statStartY = 162;
+        const statSpacing = 38;
+
         const getComparison = (val1: number, val2: number) => {
             if (val1 > val2) return { symbol: '▲', color: '#10b981' };
             if (val1 < val2) return { symbol: '▼', color: '#ef4444' };
@@ -203,22 +237,94 @@ export default class CombatScene extends Phaser.Scene {
         };
 
         statRows.forEach((stat, index) => {
-            const y = 220 + (index * spacing);
-            const labelText = this.add.text(width / 2, y, stat.label, { fontFamily: 'Verdana', fontSize: '18px', color: '#9aa4b2', fontStyle: 'bold' }).setOrigin(0.5);
+            const y = statStartY + (index * statSpacing);
             const pComp = getComparison(stat.pVal, stat.eVal);
             const eComp = getComparison(stat.eVal, stat.pVal);
-            const pValText = this.add.text(width / 2 - 200, y, String(stat.pVal), { fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(1, 0.5);
-            const pArrowText = this.add.text(width / 2 - 160, y, pComp.symbol, { fontFamily: 'sans-serif', fontSize: '18px', color: pComp.color }).setOrigin(0.5);
-            const eArrowText = this.add.text(width / 2 + 160, y, eComp.symbol, { fontFamily: 'sans-serif', fontSize: '18px', color: eComp.color }).setOrigin(0.5);
-            const eValText = this.add.text(width / 2 + 200, y, String(stat.eVal), { fontFamily: 'Verdana', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0, 0.5);
-            vsContainer.add([labelText, pValText, pArrowText, eArrowText, eValText]);
+
+            vsContainer.add([
+                this.add.text(width / 2, y, stat.label, {
+                    fontFamily: 'Verdana', fontSize: '15px', color: '#9aa4b2', fontStyle: 'bold'
+                }).setOrigin(0.5),
+                this.add.text(width / 2 - 195, y, String(stat.pVal), {
+                    fontFamily: 'Verdana', fontSize: '17px', color: '#ffffff', fontStyle: 'bold'
+                }).setOrigin(1, 0.5),
+                this.add.text(width / 2 - 165, y, pComp.symbol, {
+                    fontFamily: 'sans-serif', fontSize: '15px', color: pComp.color
+                }).setOrigin(0.5),
+                this.add.text(width / 2 + 165, y, eComp.symbol, {
+                    fontFamily: 'sans-serif', fontSize: '15px', color: eComp.color
+                }).setOrigin(0.5),
+                this.add.text(width / 2 + 195, y, String(stat.eVal), {
+                    fontFamily: 'Verdana', fontSize: '17px', color: '#ffffff', fontStyle: 'bold'
+                }).setOrigin(0, 0.5)
+            ]);
         });
 
-        const fightBtn = ButtonCreator.makeStandardButton(this, "FIGHT!", 200, 60, () => {
+        // --- EQUIPMENT SECTION ---
+        // 🔥 NEW: shows equipment for both sides — enemy equipment shows None until implemented
+        const equipStartY = statStartY + (statRows.length * statSpacing) + 16;
+        addSectionHeader('— EQUIPMENT —', equipStartY);
+
+        const playerEquip = this.playerState.equipment ?? { weapon: null, shield: null, accessory: null };
+        const enemyEquip = this.enemyTemplate.equipment ?? {};
+
+        const equipRows = [
+            {
+                icon: '⚔️',
+                label: 'WEAPON',
+                pItem: playerEquip.weapon ?? null,
+                eItem: enemyEquip.weapon ?? null
+            },
+            {
+                icon: '🛡️',
+                label: 'SHIELD',
+                pItem: playerEquip.shield ?? null,
+                eItem: enemyEquip.shield ?? null
+            },
+            {
+                icon: '💍',
+                label: 'ACCESSORY',
+                pItem: playerEquip.accessory ?? null,
+                eItem: enemyEquip.accessory ?? null
+            }
+        ];
+
+        const equipY = equipStartY + 26;
+        const equipSpacing = 30;
+
+        equipRows.forEach((row, index) => {
+            const y = equipY + (index * equipSpacing);
+            const pName = row.pItem ? row.pItem.name : 'None';
+            const eName = row.eItem ? row.eItem.name : 'None';
+            const pColor = row.pItem ? '#60a5fa' : '#374151'; // blue if equipped, dark gray if not
+            const eColor = row.eItem ? '#f87171' : '#374151'; // red if equipped, dark gray if not
+
+            vsContainer.add([
+                // Player item — right aligned to the left of center label
+                this.add.text(width / 2 - 30, y, pName, {
+                    fontFamily: 'Verdana', fontSize: '13px',
+                    color: pColor, fontStyle: row.pItem ? 'bold' : 'normal'
+                }).setOrigin(1, 0.5),
+
+                // Center label with icon
+                this.add.text(width / 2, y, `${row.icon} ${row.label}`, {
+                    fontFamily: 'Verdana', fontSize: '12px', color: '#4b5563'
+                }).setOrigin(0.5),
+
+                // Enemy item — left aligned to the right of center label
+                this.add.text(width / 2 + 30, y, eName, {
+                    fontFamily: 'Verdana', fontSize: '13px',
+                    color: eColor, fontStyle: row.eItem ? 'bold' : 'normal'
+                }).setOrigin(0, 0.5)
+            ]);
+        });
+
+        // --- FIGHT BUTTON ---
+        const fightBtn = ButtonCreator.makeStandardButton(this, 'FIGHT!', 200, 60, () => {
             vsContainer.destroy();
             this.startPlayerTurn();
         });
-        fightBtn.container.setPosition(width / 2, height - 100);
+        fightBtn.container.setPosition(width / 2, height - 80);
         vsContainer.add(fightBtn.container);
         this.uiContainer.add(vsContainer);
     }

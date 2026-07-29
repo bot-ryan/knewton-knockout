@@ -1,11 +1,11 @@
 // src/data/Enemy/EnemyArchetypes.ts
+import type { Equipment } from '../Equipment/EquipmentTypes';
 
 export interface EnemyTemplate {
     archetype: string;
     displayName: string;
     baseHp: number;
     baseStamina: number;
-    // Grouped to perfectly mirror PlayerData stats
     stats: {
         strength: number;
         dexterity: number;
@@ -16,8 +16,15 @@ export interface EnemyTemplate {
     };
     description: string;
     tier: 'BOSS' | 'ELITE' | 'STANDARD' | 'BEGINNER';
+    // 🔥 NEW: optional — enemies can have equipment in future updates
+    equipment?: {
+        weapon?:    Equipment | null;
+        shield?:    Equipment | null;
+        accessory?: Equipment | null;
+    };
 }
 
+// All existing enemy pools stay exactly the same — no changes needed
 export const BEGINNER_ENEMY_POOL: EnemyTemplate[] = [
     {
         archetype: 'DRUNKEN_FOOL',
