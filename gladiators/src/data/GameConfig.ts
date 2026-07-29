@@ -15,7 +15,7 @@ export const GameConfig = {
         MP_BASE: 5,
         MP_PER_ARCANE: 3,
 
-        STAMINA_BASE: 40,
+        STAMINA_BASE: 20,
         STAMINA_PER_VITALITY: 10,
         
         SPEED_BASE: 95,

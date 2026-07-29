@@ -103,9 +103,13 @@ export class CharacterSheetPanel {
             '🪙 Gold': 'Earned by defeating enemies.\nSpend at shop nodes on\nthe map to buy upgrades.',
         };
 
+        // 🔥 CHANGED: use effective max values so vitality equipment bonuses show correctly
+        const effectiveMaxHp = StatCalculator.getEffectiveMaxHp(player);
+        const effectiveMaxStamina = StatCalculator.getEffectiveMaxStamina(player);
+
         const vitals = [
-            { label: '❤️  HP', value: `${player.secondaryStats.hp.current} / ${player.secondaryStats.hp.max}` },
-            { label: '⚡ Stamina', value: `${player.secondaryStats.stamina.current} / ${player.secondaryStats.stamina.max}` },
+            { label: '❤️  HP', value: `${player.secondaryStats.hp.current} / ${effectiveMaxHp}` },
+            { label: '⚡ Stamina', value: `${player.secondaryStats.stamina.current} / ${effectiveMaxStamina}` },
             { label: '🪙 Gold', value: `${player.gold}` },
         ];
 

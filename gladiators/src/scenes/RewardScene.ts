@@ -1,7 +1,7 @@
 // src/scenes/RewardScene.ts
 import Phaser from 'phaser';
 import { SceneKeys } from '../data/SceneKeys';
-import { usePlayerStore } from '../data/PlayerData';
+import { usePlayerStore, type PlayerData } from '../data/PlayerData';
 import { RewardGenerator, type RewardCard, type EnemyTier } from '../utils/RewardGenerator';
 import { StatCalculator } from '../utils/StatCalculator';
 import type { Equipment } from '../data/Equipment/EquipmentTypes';
@@ -110,7 +110,7 @@ export default class RewardScene extends Phaser.Scene {
         });
     }
 
-    // 🔥 NEW: routes to the right handler based on card type
+
     private handleCardPick(
         card: RewardCard,
         store: ReturnType<typeof usePlayerStore.getState>
@@ -119,17 +119,15 @@ export default class RewardScene extends Phaser.Scene {
             const currentItem = store.equipment[card.equipment.slot];
 
             if (!currentItem) {
-                // Slot is empty — equip immediately and leave
                 store.equipItem(card.equipment);
+                this.recalculateSecondaryStats(store); // 🔥 NEW
                 this.exitToMap();
             } else {
-                // Slot is occupied — show comparison overlay
                 this.showEquipComparison(currentItem, card.equipment, store);
             }
             return;
         }
 
-        // Non-equipment rewards apply immediately
         this.applyNonEquipmentReward(card, store);
         this.exitToMap();
     }
@@ -211,13 +209,41 @@ export default class RewardScene extends Phaser.Scene {
         swapBtn.on('pointerover', () => swapBtn.setFillStyle(0x991b1b));
         swapBtn.on('pointerout', () => swapBtn.setFillStyle(0x7f1d1d));
         swapBtn.on('pointerdown', () => {
-            // Equip new item — old one is gone
             store.equipItem(incoming);
+            this.recalculateSecondaryStats(store); // 🔥 NEW
             overlay.destroy();
             this.exitToMap();
         });
 
         overlay.add([keepBtn, keepLabel, swapBtn, swapLabel]);
+    }
+
+    // 🔥 NEW: recalculates HP and stamina max after equipment changes
+    // Also adjusts current values by the same delta so player doesn't
+    // suddenly have less HP than max after equipping
+    private recalculateSecondaryStats(
+        store: ReturnType<typeof usePlayerStore.getState>
+    ) {
+        const player = usePlayerStore.getState() as PlayerData;
+
+        const newMaxHp = StatCalculator.getEffectiveMaxHp(player);
+        const newMaxStamina = StatCalculator.getEffectiveMaxStamina(player);
+
+        const hpDelta = newMaxHp - player.secondaryStats.hp.max;
+        const staminaDelta = newMaxStamina - player.secondaryStats.stamina.max;
+
+        store.updateSecondaryStats({
+            hp: {
+                max: newMaxHp,
+                // If vitality went up, current also increases by the same delta
+                // If vitality went down (unlikely but possible), current is capped at new max
+                current: Math.min(player.secondaryStats.hp.current + hpDelta, newMaxHp)
+            },
+            stamina: {
+                max: newMaxStamina,
+                current: Math.min(player.secondaryStats.stamina.current + staminaDelta, newMaxStamina)
+            }
+        });
     }
 
     // 🔥 NEW: draws one item card inside the comparison overlay

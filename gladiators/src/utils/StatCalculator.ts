@@ -2,6 +2,7 @@
 import type { PlayerData } from '../data/PlayerData';
 import type { Equipment, ScalingStat } from '../data/Equipment/EquipmentTypes';
 import { ATTACK_MULTIPLIERS, BARE_FIST_BASE } from './CombatEngine';
+import {GameConfig} from '../data/GameConfig';
 
 export class StatCalculator {
 
@@ -36,15 +37,15 @@ export class StatCalculator {
     }
 
     static getAllAttackRanges(player: PlayerData): {
-        quick:  { min: number; max: number };
+        quick: { min: number; max: number };
         normal: { min: number; max: number };
-        power:  { min: number; max: number };
+        power: { min: number; max: number };
     } {
-        const weapon       = player.equipment?.weapon;
+        const weapon = player.equipment?.weapon;
         const effectiveStats = StatCalculator.getEffectiveStats(player);
-        const base         = weapon?.baseDamage ?? BARE_FIST_BASE;
+        const base = weapon?.baseDamage ?? BARE_FIST_BASE;
         const scalingValue = StatCalculator.resolveScalingStat(weapon?.scalingStat, effectiveStats);
-        const statBonus    = Math.floor(scalingValue * 0.5);
+        const statBonus = Math.floor(scalingValue * 0.5);
 
         const calc = (multiplier: number) => ({
             min: Math.max(1, Math.floor(base.min * multiplier) + statBonus),
@@ -52,10 +53,23 @@ export class StatCalculator {
         });
 
         return {
-            quick:  calc(ATTACK_MULTIPLIERS['QUICK']),
+            quick: calc(ATTACK_MULTIPLIERS['QUICK']),
             normal: calc(ATTACK_MULTIPLIERS['NORMAL']),
-            power:  calc(ATTACK_MULTIPLIERS['POWER'])
+            power: calc(ATTACK_MULTIPLIERS['POWER'])
         };
+    }
+
+    static getEffectiveMaxHp(player: PlayerData): number {
+        const effectiveStats = StatCalculator.getEffectiveStats(player);
+        const effectiveVitality = effectiveStats['vitality'] ?? 0;
+        return GameConfig.SCALING.HP_BASE + (effectiveVitality * GameConfig.SCALING.HP_PER_VITALITY);
+    }
+
+    // Computes effective max stamina based on vitality including equipment bonuses
+    static getEffectiveMaxStamina(player: PlayerData): number {
+        const effectiveStats = StatCalculator.getEffectiveStats(player);
+        const effectiveVitality = effectiveStats['vitality'] ?? 0;
+        return GameConfig.SCALING.STAMINA_BASE + (effectiveVitality * GameConfig.SCALING.STAMINA_PER_VITALITY);
     }
 
     static getAttackValue(player: PlayerData): { min: number; max: number } {
