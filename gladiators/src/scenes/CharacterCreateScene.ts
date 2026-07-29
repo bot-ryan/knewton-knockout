@@ -205,8 +205,8 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
             // 🔥 CHANGED: use same constants as CombatEngine — bare fist NORMAL attack
             const statBonus = Math.floor(this.stats.strength * 0.5);
-            const atkMin = Math.max(1, Math.floor(BARE_FIST_BASE.min * ATTACK_MULTIPLIERS['NORMAL']) + statBonus);
-            const atkMax = Math.max(1, Math.floor(BARE_FIST_BASE.max * ATTACK_MULTIPLIERS['NORMAL']) + statBonus);
+            const atkMin = Math.max(1, Math.floor(BARE_FIST_BASE.min * ATTACK_MULTIPLIERS['QUICK']) + statBonus);
+            const atkMax = Math.max(1, Math.floor(BARE_FIST_BASE.max * ATTACK_MULTIPLIERS['POWER']) + statBonus);
 
             const characterData = {
                 name: this.nameValue,
@@ -340,8 +340,8 @@ export default class CharacterCreateScene extends Phaser.Scene {
 
         // 🔥 CHANGED: bare fist preview using same constants as CombatEngine
         const statBonus = Math.floor(this.stats.strength * 0.5);
-        const atkMin = Math.max(1, Math.floor(BARE_FIST_BASE.min * ATTACK_MULTIPLIERS['NORMAL']) + statBonus);
-        const atkMax = Math.max(1, Math.floor(BARE_FIST_BASE.max * ATTACK_MULTIPLIERS['NORMAL']) + statBonus);
+        const atkMin = Math.max(1, Math.floor(BARE_FIST_BASE.min * ATTACK_MULTIPLIERS['QUICK']) + statBonus);
+        const atkMax = Math.max(1, Math.floor(BARE_FIST_BASE.max * ATTACK_MULTIPLIERS['POWER']) + statBonus);
 
         if (this.secondaryStatTexts.hp) this.secondaryStatTexts.hp.setText(`HEALTH: ${hp}`);
         if (this.secondaryStatTexts.mp) this.secondaryStatTexts.mp.setText(`MANA: ${mp}`);
