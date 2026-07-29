@@ -170,7 +170,6 @@ export class OpenMap extends Phaser.Scene {
         this.cameras.main.fadeOut(250, 0, 0, 0);
         this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
             this.scene.start('CombatScene', {
-                character: this.activePlayer,
                 enemyTemplate: chosenEnemy
             });
         });

@@ -17,7 +17,6 @@ import { CharacterSheetPanel } from '../components/ui/CharacterSheetPanel';
 import { StatCalculator } from '../utils/StatCalculator';
 
 interface CombatPayload {
-    character: PlayerData;
     enemyTemplate: EnemyTemplate;
 }
 
@@ -66,12 +65,15 @@ export default class CombatScene extends Phaser.Scene {
     }
 
     init(data: CombatPayload) {
-        if (!data || !data.enemyTemplate || !data.character) {
+        if (!data || !data.enemyTemplate) {
             this.scene.start(SceneKeys.OpenMap);
             return;
         }
 
-        this.playerState = data.character;
+        // 🔥 CHANGED: always read player from store directly
+        // Never trust the passed reference — it may be stale if equipment
+        // was changed in RewardScene or stats changed between scenes
+        this.playerState = usePlayerStore.getState() as PlayerData;
         this.enemyTemplate = data.enemyTemplate;
         this.enemyIdentity = generateEnemyIdentity(this.enemyTemplate);
 
