@@ -9,6 +9,7 @@ import { BattleEntity } from '../components/BattleEntity';
 import { ActionMenu, type ActionItem } from '../components/ui/ActionMenu';
 import { CombatEngine, type AttackType } from '../utils/CombatEngine';
 import { ButtonCreator } from '../components/ButtonCreator';
+import type { Equipment, StatModifier } from '../data/Equipment/EquipmentTypes';
 
 import { usePlayerStore } from '../data/PlayerData';
 import { useMapStore } from '../data/MapData';
@@ -318,7 +319,7 @@ export default class CombatScene extends Phaser.Scene {
 
             const sideColor = side === 'player' ? '#60a5fa' : '#f87171';
             const modLines = item.modifiers
-                .map(m => `${m.value > 0 ? '+' : ''}${m.value} ${m.stat}`)
+                .map((m: StatModifier) => `${m.value > 0 ? '+' : ''}${m.value} ${m.stat}`)
                 .join('   ');
             const reqLine = item.requirement
                 ? `Requires ${item.requirement.stat} ${item.requirement.value}`
