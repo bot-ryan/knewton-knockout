@@ -292,31 +292,105 @@ export default class CombatScene extends Phaser.Scene {
         const equipY = equipStartY + 26;
         const equipSpacing = 30;
 
+        const infoBoxX = 40;
+        const infoBoxY = height - 220;
+        const infoBoxW = 280;
+        const infoBoxH = 120;
+
+        const infoBoxBg = this.add.rectangle(infoBoxX, infoBoxY, infoBoxW, infoBoxH, 0x0a1128)
+            .setOrigin(0, 0)
+            .setStrokeStyle(1, 0x1e293b)
+            .setAlpha(0); // hidden until hover
+
+        const infoBoxText = this.add.text(infoBoxX + 10, infoBoxY + 10, '', {
+            fontFamily: 'Verdana',
+            fontSize: '11px',
+            color: '#94a3b8',
+            wordWrap: { width: infoBoxW - 20 },
+            lineSpacing: 4
+        }).setAlpha(0);
+
+        vsContainer.add([infoBoxBg, infoBoxText]);
+
+        // Helper — shows and populates the info box
+        const showItemInfo = (item: Equipment | null, side: 'player' | 'enemy') => {
+            if (!item) return;
+
+            const sideColor = side === 'player' ? '#60a5fa' : '#f87171';
+            const modLines = item.modifiers
+                .map(m => `${m.value > 0 ? '+' : ''}${m.value} ${m.stat}`)
+                .join('   ');
+            const reqLine = item.requirement
+                ? `Requires ${item.requirement.stat} ${item.requirement.value}`
+                : '';
+
+            const lines = [
+                item.name,
+                item.description,
+                '',
+                modLines,
+                reqLine
+            ].filter(Boolean).join('\n');
+
+            infoBoxText.setText(lines).setColor(sideColor).setAlpha(1);
+            infoBoxBg.setAlpha(1);
+        };
+
+        const hideItemInfo = () => {
+            infoBoxBg.setAlpha(0);
+            infoBoxText.setAlpha(0);
+        };
+
         equipRows.forEach((row, index) => {
             const y = equipY + (index * equipSpacing);
             const pName = row.pItem ? row.pItem.name : 'None';
             const eName = row.eItem ? row.eItem.name : 'None';
-            const pColor = row.pItem ? '#60a5fa' : '#374151'; // blue if equipped, dark gray if not
-            const eColor = row.eItem ? '#f87171' : '#374151'; // red if equipped, dark gray if not
+            const pColor = row.pItem ? '#60a5fa' : '#374151';
+            const eColor = row.eItem ? '#f87171' : '#374151';
 
-            vsContainer.add([
-                // Player item — right aligned to the left of center label
-                this.add.text(width / 2 - 30, y, pName, {
-                    fontFamily: 'Verdana', fontSize: '13px',
-                    color: pColor, fontStyle: row.pItem ? 'bold' : 'normal'
-                }).setOrigin(1, 0.5),
+            // Player item text
+            const pText = this.add.text(width / 2 - 180, y, pName, {
+                fontFamily: 'Verdana', fontSize: '13px',
+                color: pColor, fontStyle: row.pItem ? 'bold' : 'normal'
+            }).setOrigin(1, 0.5);
 
-                // Center label with icon
-                this.add.text(width / 2, y, `${row.icon} ${row.label}`, {
-                    fontFamily: 'Verdana', fontSize: '12px', color: '#4b5563'
-                }).setOrigin(0.5),
+            // Center label
+            const centerLabel = this.add.text(width / 2, y, `${row.icon} ${row.label}`, {
+                fontFamily: 'Verdana', fontSize: '12px', color: '#4b5563'
+            }).setOrigin(0.5);
 
-                // Enemy item — left aligned to the right of center label
-                this.add.text(width / 2 + 30, y, eName, {
-                    fontFamily: 'Verdana', fontSize: '13px',
-                    color: eColor, fontStyle: row.eItem ? 'bold' : 'normal'
-                }).setOrigin(0, 0.5)
-            ]);
+            // Enemy item text
+            const eText = this.add.text(width / 2 + 180, y, eName, {
+                fontFamily: 'Verdana', fontSize: '13px',
+                color: eColor, fontStyle: row.eItem ? 'bold' : 'normal'
+            }).setOrigin(0, 0.5);
+
+            // 🔥 Hover only on equipped items
+            if (row.pItem) {
+                pText.setInteractive({ useHandCursor: true });
+                pText.on('pointerover', () => {
+                    pText.setColor('#93c5fd'); // lighten on hover
+                    showItemInfo(row.pItem, 'player');
+                });
+                pText.on('pointerout', () => {
+                    pText.setColor(pColor);
+                    hideItemInfo();
+                });
+            }
+
+            if (row.eItem) {
+                eText.setInteractive({ useHandCursor: true });
+                eText.on('pointerover', () => {
+                    eText.setColor('#fca5a5'); // lighten on hover
+                    showItemInfo(row.eItem, 'enemy');
+                });
+                eText.on('pointerout', () => {
+                    eText.setColor(eColor);
+                    hideItemInfo();
+                });
+            }
+
+            vsContainer.add([pText, centerLabel, eText]);
         });
 
         // --- FIGHT BUTTON ---
