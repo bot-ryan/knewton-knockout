@@ -54,6 +54,8 @@ export default class CombatScene extends Phaser.Scene {
 
     private turnState: 'PLAYER' | 'ENEMY' | 'LOCKED' = 'PLAYER';
 
+    private bg!: Phaser.GameObjects.TileSprite;
+
     private uiCamera!: Phaser.Cameras.Scene2D.Camera;
     private uiContainer!: Phaser.GameObjects.Container;
 
@@ -92,8 +94,8 @@ export default class CombatScene extends Phaser.Scene {
         this.cameras.main.fadeIn(300, 0, 0, 0);
         const bgTexture = this.textures.get('forest_bg');
         const bgScale = 1.35;
-        const bg = this.add.tileSprite(this.worldCenterX, height * 0.43, 4000, bgTexture.getSourceImage().height * bgScale, 'forest_bg');
-        bg.setTileScale(bgScale, bgScale).setDepth(-10).setScrollFactor(0.5);
+        this.bg = this.add.tileSprite(this.worldCenterX, height * 0.43, 4000, bgTexture.getSourceImage().height * bgScale, 'forest_bg');
+        this.bg.setTileScale(bgScale, bgScale).setDepth(-10).setScrollFactor(0);
 
         // --- 2. ENTITIES ---
         this.playerEntity = new BattleEntity(this, -3, height * 0.52, this.worldCenterX, this.GRID_SIZE, {
@@ -156,6 +158,12 @@ export default class CombatScene extends Phaser.Scene {
 
         this.updateDynamicCamera(0);
         this.showPreBattleScreen();
+    }
+
+    update() {
+        if (this.bg) {
+            this.bg.tilePositionX = this.cameras.main.scrollX * 0.5;
+        }
     }
 
     private warnIfUnderequipped(): number {
@@ -542,8 +550,10 @@ export default class CombatScene extends Phaser.Scene {
             }
         }
         else if (['QUICK', 'NORMAL', 'POWER'].includes(type)) {
+            // 🔥 FIXED: use effective precision so equipment bonuses actually apply
+            const effective = StatCalculator.getEffectiveStats(this.playerState);
             const hits = CombatEngine.calculateHit(
-                this.playerState.stats.precision,
+                effective.precision,            // was: this.playerState.stats.precision
                 this.enemyTemplate.stats.guard,
                 type as AttackType
             );
