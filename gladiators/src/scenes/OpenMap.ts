@@ -108,7 +108,7 @@ export class OpenMap extends Phaser.Scene {
             if (isSelectable) {
                 icon.setInteractive({ useHandCursor: true });
                 icon.on('pointerover', () => icon.setScale(1.2));
-                icon.on('pointerout',  () => icon.setScale(1.0));
+                icon.on('pointerout', () => icon.setScale(1.0));
                 icon.on('pointerdown', (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
                     event.stopPropagation();
                     this.handleNodeEncounter(node);
@@ -132,10 +132,10 @@ export class OpenMap extends Phaser.Scene {
 
         CharacterSheetPanel.createButton(this, this.activePlayer!);
 
-        
+
     }
 
-    
+
 
     // --- HELPERS for building panel content ---
 
@@ -160,6 +160,13 @@ export class OpenMap extends Phaser.Scene {
             selectedPool = ELITE_ENEMY_POOL;
         } else if (nodeType.includes('👑') || nodeType.includes('BOSS')) {
             selectedPool = BOSS_ENEMY_POOL;
+        }
+        else if (nodeType.includes('💎') || nodeType.includes('SHOP')) {
+            this.cameras.main.fadeOut(250, 0, 0, 0);
+            this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                this.scene.start(SceneKeys.ShopScene, { tier: 'beginner' }); // tier from map depth later
+            });
+            return;
         } else {
             console.warn(`Unmapped node type: ${node.type}. Defaulting to Beginner.`);
             selectedPool = BEGINNER_ENEMY_POOL;

@@ -9,6 +9,7 @@ import CharacterCreateScene from './scenes/CharacterCreateScene';
 import {OpenMap} from './scenes/OpenMap';
 import CombatScene from './scenes/CombatScene';
 import RewardScene from './scenes/RewardScene';
+import ShopScene from './scenes/ShopScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -26,6 +27,7 @@ const config: Phaser.Types.Core.GameConfig = {
     OpenMap,
     CombatScene,
     RewardScene,
+    ShopScene
   ],
   dom: { createContainer: true }, // required for HTML <input> in CharacterCreate
   scale: {
