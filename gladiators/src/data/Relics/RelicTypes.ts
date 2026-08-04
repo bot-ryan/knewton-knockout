@@ -1,5 +1,7 @@
 // src/data/Relics/RelicTypes.ts
 
+import type { StatModifier } from "../Equipment/EquipmentTypes";
+
 export type RelicTrigger = 
     | 'on_kill'
     | 'on_hit'
@@ -13,5 +15,6 @@ export interface Relic {
     name: string;
     description: string;    // plain english: "Recover 5 HP on kill"
     trigger: RelicTrigger;
+    modifiers?: StatModifier[];  // optional stat modifiers that this relic applies
     flavourText?: string;
 }

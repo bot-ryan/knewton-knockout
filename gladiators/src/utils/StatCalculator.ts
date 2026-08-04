@@ -2,7 +2,7 @@
 import type { PlayerData } from '../data/PlayerData';
 import type { Equipment, ScalingStat } from '../data/Equipment/EquipmentTypes';
 import { ATTACK_MULTIPLIERS, BARE_FIST_BASE } from './CombatEngine';
-import {GameConfig} from '../data/GameConfig';
+import { GameConfig } from '../data/GameConfig';
 
 export class StatCalculator {
 
@@ -12,6 +12,16 @@ export class StatCalculator {
 
         const equip = player.equipment;
         if (!equip) return effective; // safety — old data without equipment field
+
+        const relics = player.relics ?? [];
+        relics.forEach(relic => {
+            if (relic.trigger !== 'passive' || !relic.modifiers) return;
+            relic.modifiers.forEach(mod => {
+                if (effective[mod.stat] !== undefined) {
+                    effective[mod.stat] += mod.value;
+                }
+            });
+        });
 
         const allItems = [equip.weapon, equip.shield, equip.accessory].filter(Boolean);
         allItems.forEach(item => {
